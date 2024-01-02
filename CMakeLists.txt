@@ -1,11 +1,39 @@
 ﻿# CMakeList.txt : CMake project for Ray Marching, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.20)
 
-project ("Ray Marching")
-
+project ("Ray_Marching")
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Add source to this project's executable.
-add_executable (CMakeTarget "src/Ray Marching.cpp" "src/Ray Marching.h")
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+include(FetchContent)
+Set(FETCHCONTENT_QUIET FALSE)
+
+FetchContent_Declare(
+        glfw
+        GIT_REPOSITORY https://github.com/glfw/glfw.git
+        GIT_TAG 3.3.5
+)
+FetchContent_MakeAvailable(glfw)
+include_directories(${glfw_SOURCE_DIR}/include)
+
+FetchContent_Declare(
+        glad
+        GIT_REPOSITORY https://github.com/Dav1dde/glad.git
+        GIT_TAG v0.1.34
+)
+FetchContent_MakeAvailable(glad)
+include_directories(${glad_SOURCE_DIR}/include)
+
+
+add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h")
+
+
+
+target_link_libraries(Ray_Marching glfw glad)
 
 # TODO: Add tests and install targets if needed.
