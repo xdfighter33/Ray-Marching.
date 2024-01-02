@@ -3,6 +3,49 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+#Get Rid of SDL Generated Files
+_deps/
+SDL2ConfigVersion.cmake
+
+
+# CMake generated files
+CMakeFiles/
+CMakeCache.txt
+MakeFile
+CMakeScripts/
+cmake_install.cmake
+cmake-build-*/
+
+
+# Compiled binaries
+bin/
+build/
+Debug/
+Release/
+*.exe
+*.out
+
+
+# IDE/Editor specific files (if not using a global gitignore)
+.vscode/
+*.suo
+*.user
+*.sln
+*.vcxproj
+*.vcxproj.filters
+*.opensdf
+*.sdf
+
+# macOS specific files
+.DS_Store
+
+# Windows specific files
+Thumbs.db
+
+
+
+
+
 # User-specific files
 *.rsuser
 *.suo
