@@ -1,6 +1,7 @@
 ﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
-
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 #include "Shader.h"
 #include <iostream>
 
@@ -10,6 +11,14 @@ void processInput(GLFWwindow* window);
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+std::string fragmentShaderPath = std::string(SHADER_DIR) + "/Fragment.glsl";
+std::string VertexShaderPath = std::string(SHADER_DIR) + "/Vertex.glsl";
+
+float Color_value = 0;
+
+
+
+
 
 int main()
 {
@@ -46,12 +55,8 @@ int main()
 
     // build and compile our shader program
     // ------------------------------------
- 
-    std::string fragmentShaderPath = std::string(SHADER_DIR) + "/Fragment.glsl";
-    std::string VertexShaderPath = std::string(SHADER_DIR) + "/Vertex.glsl";
+    Shader myshader(VertexShaderPath, fragmentShaderPath);
 
-
-    Shader ourShader(fragmentShaderPath, VertexShaderPath); // you can name your shader files however you like
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -60,6 +65,7 @@ int main()
          0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,  // bottom right
         -0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,  // bottom left
          0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f   // top 
+
     };
 
     unsigned int VBO, VAO;
@@ -74,37 +80,40 @@ int main()
     // position attribute
     glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
+
     // color attribute
     glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
-
-    // You can unbind the VAO afterwards so other VAO calls won't accidentally modify this VAO, but this rarely happens. Modifying other
-    // VAOs requires a call to glBindVertexArray anyways so we generally don't unbind VAOs (nor VBOs) when it's not directly necessary.
-    // glBindVertexArray(0);
-
 
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window))
     {
+
+        glfwPollEvents();
+        processInput(window);
+        float timeValue = glfwGetTime();
+        Color_value = sin(timeValue) / 2.0f + 0.5f;
+
+
+        
         // input
         // -----
-        processInput(window);
 
-        // render
-        // ------
+
+
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         // render the triangle
-        ourShader.use();
+        myshader.use();
         glBindVertexArray(VAO);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
-        glfwPollEvents();
+
     }
 
     // optional: de-allocate all resources once they've outlived their purpose:
@@ -114,6 +123,8 @@ int main()
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
+
+    processInput(window);
     glfwTerminate();
     return 0;
 }
@@ -124,6 +135,9 @@ void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
+    if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
+        Color_value = 0;
+    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes

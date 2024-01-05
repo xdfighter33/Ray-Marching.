@@ -27,6 +27,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(glad)
 include_directories(${glad_SOURCE_DIR}/include)
 
+
+FetchContent_Declare(
+        glm
+        GIT_REPOSITORY https://github.com/g-truc/glm
+        GIT_TAG master
+)
+FetchContent_MakeAvailable(glm)
+
+
+
+include_directories(${glm_SOURCE_DIR}/include)
+
 # Add an executable
 add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h" "src/Shader.h")
 
@@ -38,4 +50,4 @@ get_filename_component(SHADER_ABSOLUTE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/SHADER"
 target_compile_definitions(Ray_Marching PRIVATE SHADER_DIR="${SHADER_ABSOLUTE_PATH}")
 
 # Link libraries
-target_link_libraries(Ray_Marching glfw glad)
+target_link_libraries(Ray_Marching glfw glad glm)
