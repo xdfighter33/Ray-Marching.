@@ -30,7 +30,7 @@ FetchContent_MakeAvailable(glad)
 include_directories(${glad_SOURCE_DIR}/include)
 
 
-add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h")
+add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h" "src/Shader.h" "src/Shader.cpp")
 
 
 
