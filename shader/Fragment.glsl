@@ -1,5 +1,11 @@
-"#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main(){\n"
-"	FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-"}\0";
+// Fragment shader:
+// ================
+#version 330 core
+out vec4 FragColor;
+// in vec3 ourColor;
+in vec3 ourPosition;
+
+void main()
+{
+    FragColor = vec4(ourPosition, 1.0);    // note how the position value is linearly interpolated to get all the different colors
+}
