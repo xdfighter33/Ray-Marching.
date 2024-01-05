@@ -1,11 +1,11 @@
 ﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "Shader.h"
 
+#include "Shader.h"
 #include <iostream>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
-void processInput(GLFWwindow *window);
+void processInput(GLFWwindow* window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
@@ -46,7 +46,12 @@ int main()
 
     // build and compile our shader program
     // ------------------------------------
-    Shader ourShader(SHADER_DIR "Fragment.glsl", SHADER_DIR,"Vertex.glsl"); // you can name your shader files however you like
+ 
+    std::string fragmentShaderPath = std::string(SHADER_DIR) + "/Fragment.glsl";
+    std::string VertexShaderPath = std::string(SHADER_DIR) + "/Vertex.glsl";
+
+
+    Shader ourShader(fragmentShaderPath, VertexShaderPath); // you can name your shader files however you like
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
@@ -115,7 +120,7 @@ int main()
 
 // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
 // ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
+void processInput(GLFWwindow* window)
 {
     if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(window, true);
