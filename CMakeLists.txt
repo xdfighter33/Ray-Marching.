@@ -30,8 +30,14 @@ FetchContent_MakeAvailable(glad)
 include_directories(${glad_SOURCE_DIR}/include)
 
 
-add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h" "src/Shader.h" "src/Shader.cpp")
+add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h" "src/Shader.h")
 
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/shader DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
+get_filename_component(shader_ABSOLUTE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/shader" ABSOLUTE)
+
+
+target_compile_definitions(Ray_Marching PRIVATE shader_DIR="${shader_ABSOLUTE_PATH}")
 
 
 target_link_libraries(Ray_Marching glfw glad)
