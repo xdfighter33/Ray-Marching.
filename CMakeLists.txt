@@ -40,7 +40,7 @@ FetchContent_MakeAvailable(glm)
 include_directories(${glm_SOURCE_DIR}/include)
 
 # Add an executable
-add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h" "src/Shader.h")
+add_executable (Ray_Marching "src/Ray Marching.cpp" "src/Ray Marching.h" "src/Shader.h" "src/stb_image.h")
 
 # Copy shader files to the build directory
 file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/SHADER DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
