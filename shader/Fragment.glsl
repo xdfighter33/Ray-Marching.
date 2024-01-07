@@ -1,26 +1,13 @@
-#version 410 core
-
-
-//in vec3 ourPosition;
-//uniform float Color_value;
-
-
+#version 330 core
 out vec4 FragColor;
 
-in vec3 Ourcolor;
-in vec2 texCoord;
-uniform sampler2D MyTexture;
+in vec3 ourColor;
+in vec2 TexCoord;
 
+// texture sampler
+uniform sampler2D texture1;
 
 void main()
 {
-    //Ourcolor = vec3(1.0,1.0,0.0);
-    FragColor = texture(MyTexture, texCoord);   // note how the position value is linearly interpolated to get all the different colors
+	FragColor = texture(texture1, TexCoord);
 }
-
-
-
-
-
-
-
