@@ -9,7 +9,7 @@
 #include "stb_image.h"
 
 
-
+glm::vec3 camera_pos;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
@@ -37,7 +37,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+    GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Ray Marching", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -60,7 +60,17 @@ int main()
     Shader myshader(VertexShaderPath, fragmentShaderPath);
 
 
+    float tri_vertices[] = {
+        -1.0f, -1.0f, 0.0f,  // bottom-left corner
+        3.0f, -1.0f, 0.0f,   // bottom-right corner
+        -1.0f, 3.0f, 0.0f    // top-left corner
+    };
 
+
+ unsigned int tri_indices[] = { 0, 1, 2 }; // Indices for a single triangle
+
+
+ // Seems like there is something with the textures wil be sure to fix Later ;
 float vertices[] = {
     // positions        // texture coords
     -1.0f,  1.0f, 0.0f,  0.0f, 1.0f, // top left
@@ -76,12 +86,9 @@ float vertices[] = {
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     unsigned int indices[] = {
-    0, 1, 3, // first triangle
-    1, 2, 3  // second triangle
+    0, 1, 3,
+    1, 2, 3  
     };
-
-glm::mat4 model = glm::mat4(1.0f);
-model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
 
 
@@ -93,23 +100,20 @@ model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     glBindVertexArray(VAO);
 
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(tri_vertices), tri_vertices, GL_STATIC_DRAW);
 
     
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(tri_indices), tri_indices, GL_STATIC_DRAW);
 
     // position attribute
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
     // texture coord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+   // glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
+    //glEnableVertexAttribArray(1);
 
-    // color attribute
-    //glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
-    //glEnableVertexAttribArray(1);;
 
     unsigned int texture;
     glGenTextures(1, &texture);
@@ -138,14 +142,14 @@ model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
     }
     stbi_image_free(data);
 
-
-
+    // Setting up Camera
+    camera_pos = glm::vec3{0.0f,0.0f,-2.0f};
     // render loop
     while (!glfwWindowShouldClose(window))
     {
         float get_time = glfwGetTime();
         glm::vec2 screen_resolution;
-
+      
         screen_resolution.x = SCR_WIDTH;
         screen_resolution.y = SCR_HEIGHT;
         
@@ -164,34 +168,14 @@ model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
   
         // activate shader
         myshader.use();
-      /*
-        // create transformations
-        glm::mat4 model         = glm::mat4(1.0f); // make sure to initialize matrix to identity matrix first
-        glm::mat4 view          = glm::mat4(1.0f);
-        glm::mat4 projection    = glm::mat4(1.0f);
 
-
-        model = glm::rotate(model, glm::radians(-55.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-
-        view  = glm::translate(view, glm::vec3(0.0f, 0.0f, -5.0f));
-        projection = glm::perspective(glm::radians(45.0f), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
-
-        // retrieve the matrix uniform locations
-        unsigned int modelLoc = glGetUniformLocation(myshader.ID, "model");
-        unsigned int viewLoc  = glGetUniformLocation(myshader.ID, "view");
-        // pass them to the shaders (3 different ways)
-        glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-        glUniformMatrix4fv(viewLoc, 1, GL_FALSE, &view[0][0]);
-        // note: currently we set the projection matrix each frame, but since the projection matrix rarely changes it's often best practice to set it outside the main loop only once.
-        myshader.setMat4("projection", projection);
-         */ 
         // render container
 
         myshader.setFloat("time",get_time);
         myshader.setVec2("resolution",screen_resolution);
-
+        myshader.setVec3("camera", camera_pos);
         glBindVertexArray(VAO);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+        glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
@@ -221,6 +205,9 @@ void processInput(GLFWwindow* window)
         glfwSetWindowShouldClose(window, true);
     if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
         Color_value = 0;
+    }
+    if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
+
     }
 }
 
