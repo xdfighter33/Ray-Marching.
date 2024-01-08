@@ -149,7 +149,8 @@ float vertices[] = {
     {
         float get_time = glfwGetTime();
         glm::vec2 screen_resolution;
-      
+        glm::vec4 background_color = glm::vec4{ 0.0f,0.0f,0.0f,0.0f };
+
         screen_resolution.x = SCR_WIDTH;
         screen_resolution.y = SCR_HEIGHT;
         
@@ -160,7 +161,7 @@ float vertices[] = {
 
         // render
         // ------
-        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClearColor(background_color.x,background_color.y,background_color.x,background_color.z);
         glClear(GL_COLOR_BUFFER_BIT);
 
         // bind textures on corresponding texture units
@@ -174,6 +175,7 @@ float vertices[] = {
         myshader.setFloat("time",get_time);
         myshader.setVec2("resolution",screen_resolution);
         myshader.setVec3("camera", camera_pos);
+        myshader.setVec4("Back_ground_color", background_color);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 
