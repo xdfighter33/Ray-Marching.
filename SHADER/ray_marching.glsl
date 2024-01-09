@@ -41,11 +41,11 @@ vec3 computeNormal(vec3 p, vec3 boxDimensions) {
 
 vec3 computeBoxPosition(float time) {
     // Modify the position of the box based on time
-    float amplitude = 10.0; // Adjust the amplitude of the movement
-    float speed = 5.0; // Adjust the speed of the movement
+    float amplitude = 0.5; // Adjust the amplitude of the movement
+    float speed = 1.0; // Adjust the speed of the movement
     float yOffset = sin(time * speed) * amplitude; // Calculate the y offset
     float xOffset = sin(time * speed) * amplitude; // Calculate the x offset
-    return vec3(0.0, 0.0, -5.0); // The new position of the box
+    return vec3(0.0, -1.0, -5.0); // The new position of the box
 }
 
 vec3 rotate(vec3 p, vec3 angles) {
@@ -79,21 +79,10 @@ float opU( float d1, float d2 )
 
 
 
-float repeated(vec3 p, vec3 r,float s ){
-p.x = p.x - round(p.x);
-
-vec3 v = p - s * round(p / s);
-
-
-return sdBox(v, r);
-
-//return sdBox(p,r);
-}
-
 
 float smin(float a, float b, float k) {
-    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
-    return mix(b, a, h) - k * h * (1.0 - h);
+  float res = exp2( -k*a ) + exp2( -k*b );
+    return -log2( res )/k;
 }
 
 
@@ -101,14 +90,26 @@ float smin(float a, float b, float k) {
 float map(vec3 p,float time){
 
 
-vec3 spherePos = vec3(sin(time)*5.,-1.5,0);
+vec3 spherePos = vec3(sin(time) * 2,-2,2.5);
+vec3 boxPos = vec3(0,-2,2.5);
 
-float sphere = sdf_sphere_1(p-spherePos,1.0);
+float sphere = sdf_sphere_1(p-spherePos,0.25);
 
-float box = sdBox(p, vec3(.75));
-float ground = -p.y + .75;
 
-return smin(ground,smin(sphere,box,2.),2.);
+
+vec3 zx = p;
+
+
+p.z -= (time) * 5;
+zx = fract(p) - .5;
+
+
+
+float box = sdBox(zx, vec3(0.25));
+float ground1 = -p.y + .75;
+float ground2 = p.y + .75;
+
+return box;
 }
 void main(){    
     vec3 repetitions = vec3(1.0);
@@ -117,10 +118,10 @@ void main(){
      vec3 objectPos = vec3(0.0, 0.0, 0.0);
     uv.x *= resolution.x / resolution.y;
     float current_time = time;
-    vec3 camPos = vec3(0.0, 0.0, -5.0); // Camera position
-    //vec3 camPos = computeBoxPosition(current_time); // Camera position
+    //vec3 camPos = vec3(0.0, 0.0, -5.0); // Camera position
+    vec3 camPos = computeBoxPosition(current_time); // Camera position
    
-    vec3 rayDir = normalize(vec3(uv, -1.0)); // Ray direction
+    vec3 rayDir = normalize(vec3(uv, -3.0)); // Ray direction
 
     const int maxSteps = 100;
     const float maxDist = 100.0;
@@ -129,14 +130,8 @@ void main(){
     float distance = 0.0;
     for (int i = 0; i < maxSteps; ++i) {
 
-        float dist_box = sdBox(camPos + distance * rayDir, vec3(0.3, 0.3, 0.3)); // Box dimensions (adjust as needed)
-
-
-        //float dist_sphere = sdf_sphere_1(camPos + distance * rayDir);
-        //float inf_box = opRepetition(camPos + distance * rayDir,dist_sphere,repetitions);
 
         float maps = map(camPos + distance * rayDir,current_time);
-        float inf_box1 = repeated(camPos + distance * rayDir,vec3(0.5, 0.5, 0.5),15.0);
         float closestDist = maps;
        
         
@@ -152,9 +147,11 @@ void main(){
 
 
             // Simple diffuse lighting
-            float diffuse = max(dot(normal, normalize(vec3(10.0, 10.0, -0.7))), 0.0); // Light direction: (-0.7, 0.7, 0.7)
-            vec3 color = vec3(1.0, 0.5, 0.2); // Base color
-            vec3 finalColor = color;
+            float diffuse = max(dot(normal, normalize(vec3(0.0, -5.0, -2
+            ))), 0.0); // Light direction: (-0.7, 0.7, 0.7)
+            vec3 color = vec3(0.3, 0.3, 0.3); // Base color
+            //vec3 color = vec3(rayDir * .5); // Base color
+            vec3 finalColor = color * diffuse;
             //vec3 finalColor = vec3(depthIntensity);;
 
 
