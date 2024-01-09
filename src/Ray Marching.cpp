@@ -10,12 +10,14 @@
 
 
 glm::vec3 camera_pos;
+void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
+glm::vec4 mouse_pos = glm::vec4(0);
 std::string fragmentShaderPath = std::string(SHADER_DIR) + "/ray_marching.glsl";
 std::string VertexShaderPath   = std::string(SHADER_DIR) + "/Vertex.glsl";
 
@@ -158,6 +160,7 @@ float vertices[] = {
         // -----
         processInput(window);
         glfwPollEvents();
+        glfwSetCursorPosCallback(window, mouseCallback);
 
         // render
         // ------
@@ -176,6 +179,7 @@ float vertices[] = {
         myshader.setVec2("resolution",screen_resolution);
         myshader.setVec3("camera", camera_pos);
         myshader.setVec4("Back_ground_color", background_color);
+        myshader.setVec2("iMouse", mouse_pos);
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 
@@ -212,6 +216,21 @@ void processInput(GLFWwindow* window)
 
     }
 }
+
+
+void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
+    // Do something with the mouse position
+    // Example: Print mouse coordinates
+    //std::cout << "Mouse position: " << xpos << ", " << ypos << std::endl;
+
+    mouse_pos.x = xpos;
+    mouse_pos.y = ypos;
+
+    std::cout << "Mouse Position_x: " << mouse_pos.x << std::endl;
+    std::cout << "Mouse Position_y: " << mouse_pos.y << std::endl;
+}
+
+
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
 // ---------------------------------------------------------------------------------------------

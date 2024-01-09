@@ -2,11 +2,15 @@
 
 out vec4 FragColor;
 
+
+uniform vec2 iMouse;
 uniform vec2 resolution;
 uniform float time;
 uniform vec4 Back_ground_color;
-float sdf_sphere_1(vec3 p){
-    return length(p - vec3(0.5, 0.0, 0.0)) - 0.5; // Sphere 1 with radius 0.5 at (0.5, 0.0, 0.0)
+
+
+float sdf_sphere_1(vec3 p, float r){
+    return length(p) - r; // 
 }
 
 
@@ -37,8 +41,8 @@ vec3 computeNormal(vec3 p, vec3 boxDimensions) {
 
 vec3 computeBoxPosition(float time) {
     // Modify the position of the box based on time
-    float amplitude = 1.0; // Adjust the amplitude of the movement
-    float speed = 0.5; // Adjust the speed of the movement
+    float amplitude = 10.0; // Adjust the amplitude of the movement
+    float speed = 5.0; // Adjust the speed of the movement
     float yOffset = sin(time * speed) * amplitude; // Calculate the y offset
     float xOffset = sin(time * speed) * amplitude; // Calculate the x offset
     return vec3(0.0, 0.0, -5.0); // The new position of the box
@@ -66,7 +70,16 @@ vec3 q = p - s*clamp(round(p/s),-1,1);
 return sdBox(q,s);
 }
 
-float repeaterd(vec3 p, vec3 r,float s ){
+
+
+float opU( float d1, float d2 )
+{
+    return min( d1, d2 );
+}
+
+
+
+float repeated(vec3 p, vec3 r,float s ){
 p.x = p.x - round(p.x);
 
 vec3 v = p - s * round(p / s);
@@ -76,17 +89,38 @@ return sdBox(v, r);
 
 //return sdBox(p,r);
 }
+
+
+float smin(float a, float b, float k) {
+    float h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+    return mix(b, a, h) - k * h * (1.0 - h);
+}
+
+
+
+float map(vec3 p,float time){
+
+
+vec3 spherePos = vec3(sin(time)*5.,-1.5,0);
+
+float sphere = sdf_sphere_1(p-spherePos,1.0);
+
+float box = sdBox(p, vec3(.75));
+float ground = -p.y + .75;
+
+return smin(ground,smin(sphere,box,2.),2.);
+}
 void main(){    
     vec3 repetitions = vec3(1.0);
     vec2 uv = gl_FragCoord.xy / resolution.xy;
     uv = uv * 2.0 - 1.0;
-      vec3 objectPos = vec3(0.0, 0.0, 0.0);
+     vec3 objectPos = vec3(0.0, 0.0, 0.0);
     uv.x *= resolution.x / resolution.y;
     float current_time = time;
-    //vec3 camPos = vec3(0.0, 0.0, -3.0); // Camera position
-    vec3 camPos = computeBoxPosition(current_time); // Camera position
+    vec3 camPos = vec3(0.0, 0.0, -5.0); // Camera position
+    //vec3 camPos = computeBoxPosition(current_time); // Camera position
    
-    vec3 rayDir = normalize(vec3(uv, -2.0)); // Ray direction
+    vec3 rayDir = normalize(vec3(uv, -1.0)); // Ray direction
 
     const int maxSteps = 100;
     const float maxDist = 100.0;
@@ -95,13 +129,15 @@ void main(){
     float distance = 0.0;
     for (int i = 0; i < maxSteps; ++i) {
 
-        float dist_box = sdBox(camPos + distance * rayDir, vec3(0.5, 0.3, 0.3)); // Box dimensions (adjust as needed)
+        float dist_box = sdBox(camPos + distance * rayDir, vec3(0.3, 0.3, 0.3)); // Box dimensions (adjust as needed)
 
-        float dist_sphere = sdf_sphere_1(camPos + distance * rayDir);
+
+        //float dist_sphere = sdf_sphere_1(camPos + distance * rayDir);
         //float inf_box = opRepetition(camPos + distance * rayDir,dist_sphere,repetitions);
 
-        float inf_box1 = repeaterd(camPos + distance * rayDir,vec3(0.5, 0.3, 0.3),15);
-        float closestDist = inf_box1;
+        float maps = map(camPos + distance * rayDir,current_time);
+        float inf_box1 = repeated(camPos + distance * rayDir,vec3(0.5, 0.5, 0.5),15.0);
+        float closestDist = maps;
        
         
 
@@ -110,12 +146,16 @@ void main(){
             vec3 normal = computeNormal(hitPoint, vec3(0.5, 0.3, 0.3)); // Calculate normal
 
 
+            float depthIntensity = 1.0 + smoothstep(0.0, 0., distance / maxDist);
+
+
 
 
             // Simple diffuse lighting
-            float diffuse = max(dot(normal, normalize(vec3(0.7, 0.7, -0.7))), 0.0); // Light direction: (-0.7, 0.7, 0.7)
+            float diffuse = max(dot(normal, normalize(vec3(10.0, 10.0, -0.7))), 0.0); // Light direction: (-0.7, 0.7, 0.7)
             vec3 color = vec3(1.0, 0.5, 0.2); // Base color
-            vec3 finalColor = color * diffuse; // Apply diffuse lighting
+            vec3 finalColor = color;
+            //vec3 finalColor = vec3(depthIntensity);;
 
 
 
@@ -123,7 +163,7 @@ void main(){
             return;
         }
         
-        distance += closestDist;
+        distance -= closestDist;
         if (distance > maxDist) break;
     }
 
