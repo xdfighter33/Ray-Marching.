@@ -8,6 +8,26 @@ uniform vec2 resolution;
 uniform float time;
 uniform vec4 Back_ground_color;
 
+float noise(vec3 p) {
+    return fract(sin(dot(p, vec3(12.9898, 78.233, 98.422))) * 43758.5453);
+}
+
+float marble(vec3 p) {
+    float freq = 5.0;
+    float amp = 0.5;
+    float turbulence = 0.0;
+
+    for (int i = 0; i < 4; i++) {
+        turbulence += abs(noise(p * freq)) * amp;
+        freq *= 2.0;
+        amp *= 0.5;
+        p *= 2.0; // Adjust the scale of noise
+    }
+
+    return turbulence;
+}
+
+
 
 float sdf_sphere_1(vec3 p, float r){
     return length(p) - r; // 
@@ -45,7 +65,7 @@ vec3 computeBoxPosition(float time) {
     float speed = 1.0; // Adjust the speed of the movement
     float yOffset = sin(time * speed) * amplitude; // Calculate the y offset
     float xOffset = sin(time * speed) * amplitude; // Calculate the x offset
-    return vec3(0.0, -1.0, -5.0); // The new position of the box
+    return vec3(0.0, -0.75, -3.0); // The new position of the box
 }
 
 vec3 rotate(vec3 p, vec3 angles) {
@@ -90,18 +110,16 @@ float smin(float a, float b, float k) {
 float map(vec3 p,float time){
 
 
-vec3 spherePos = vec3(sin(time) * 2,-2,2.5);
+vec3 spherePos = vec3( 0,sin(time)*3,2);
 vec3 boxPos = vec3(0,-2,2.5);
 
-float sphere = sdf_sphere_1(p-spherePos,0.25);
-
+float sphere = sdf_sphere_1(p-spherePos,.25);
 
 
 vec3 zx = p;
 
 
-p.z -= (time) * 5;
-zx = fract(p) - .5;
+zx = fract(p) - .45;
 
 
 
@@ -109,7 +127,7 @@ float box = sdBox(zx, vec3(0.25));
 float ground1 = -p.y + .75;
 float ground2 = p.y + .75;
 
-return box;
+return smin(box,sphere,2);
 }
 void main(){    
     vec3 repetitions = vec3(1.0);
@@ -147,11 +165,15 @@ void main(){
 
 
             // Simple diffuse lighting
-            float diffuse = max(dot(normal, normalize(vec3(0.0, -5.0, -2
+            float diffuse = max(dot(normal, normalize(vec3(0.0, -1.0, -5.0
             ))), 0.0); // Light direction: (-0.7, 0.7, 0.7)
-            vec3 color = vec3(0.3, 0.3, 0.3); // Base color
-            //vec3 color = vec3(rayDir * .5); // Base color
-            vec3 finalColor = color * diffuse;
+             float matrixEffect = sin(time * hitPoint.x * 0.5) * cos(hitPoint.y * 20.0);
+            float noiseValue = noise(hitPoint * 5.0); // Adjust the noise frequency
+            matrixEffect += noiseValue * 1.5; // Adjust noise influence
+
+            // Modify the color based on the matrix effect
+            vec3 color = vec3(0.12, 1.0, 0.0); // Base color
+            vec3 finalColor = color + matrixEffect * vec3(0.5, 0.5, 0.5); // Add matrix effect
             //vec3 finalColor = vec3(depthIntensity);;
 
 
