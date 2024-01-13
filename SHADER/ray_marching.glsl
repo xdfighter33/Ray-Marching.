@@ -1,4 +1,6 @@
 #version 410 core
+#define PI2 6.28318531
+
 
 out vec4 FragColor;
 
@@ -11,6 +13,10 @@ uniform vec4 Back_ground_color;
 float noise(vec3 p) {
     return fract(sin(dot(p, vec3(12.9898, 78.233, 98.422))) * 43758.5453);
 }
+
+
+
+
 
 float marble(vec3 p) {
     float freq = 5.0;
@@ -37,6 +43,11 @@ float sdf_sphere_1(vec3 p, float r){
 float sdBox(vec3 p, vec3 b) {
     vec3 d = abs(p) - b;
     return length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
+}
+float sdVerticalCapsule( vec3 p, float h, float r )
+{
+  p.y -= clamp( p.y, 0.0, h );
+  return length( p ) - r;
 }
 
 vec3 boxGradient(vec3 p, vec3 rad) {
@@ -65,7 +76,7 @@ vec3 computeBoxPosition(float time) {
     float speed = 1.0; // Adjust the speed of the movement
     float yOffset = sin(time * speed) * amplitude; // Calculate the y offset
     float xOffset = sin(time * speed) * amplitude; // Calculate the x offset
-    return vec3(0.0, -0.75, -3.0); // The new position of the box
+    return vec3(0, 0, time * -4); // The new position of the box
 }
 
 vec3 rotate(vec3 p, vec3 angles) {
@@ -106,40 +117,53 @@ float smin(float a, float b, float k) {
 }
 
 
+float opUnion( float d1, float d2 )
+{
+    return max(-d1,d2);
+}
+
+float opSmoothUnion( float d1, float d2, float k )
+{
+    float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );
+    return mix( d2, d1, h ) - k*h*(1.0-h);
+}
+
+
 
 float map(vec3 p,float time){
 
 
-vec3 spherePos = vec3( 0,sin(time)*3,2);
+vec3 spherePos = vec3( sin(time) * 2,0,0);
 vec3 boxPos = vec3(0,-2,2.5);
 
-float sphere = sdf_sphere_1(p-spherePos,.25);
-
+vec3 linePos = vec3( 0,0,5);
 
 vec3 zx = p;
-
 
 zx = fract(p) - .45;
 
 
 
-float box = sdBox(zx, vec3(0.25));
+float sphere = sdf_sphere_1(p - spherePos,0.5);
+float line = sdVerticalCapsule(zx,0.25,0.252);
+
+float box = sdBox(p,vec3(0.5));
 float ground1 = -p.y + .75;
 float ground2 = p.y + .75;
 
-return smin(box,sphere,2);
+float combined =  opSmoothUnion(ground1,sphere,1.0);
+
+return ground1;
 }
-void main(){    
+void main() {
     vec3 repetitions = vec3(1.0);
     vec2 uv = gl_FragCoord.xy / resolution.xy;
     uv = uv * 2.0 - 1.0;
-     vec3 objectPos = vec3(0.0, 0.0, 0.0);
+    vec3 objectPos = vec3(0.0, 0.0, 0.0);
     uv.x *= resolution.x / resolution.y;
     float current_time = time;
-    //vec3 camPos = vec3(0.0, 0.0, -5.0); // Camera position
-    vec3 camPos = computeBoxPosition(current_time); // Camera position
-   
-    vec3 rayDir = normalize(vec3(uv, -3.0)); // Ray direction
+    vec3 camPos = computeBoxPosition(current_time);
+    vec3 rayDir = normalize(vec3(uv, -3.0));
 
     const int maxSteps = 100;
     const float maxDist = 100.0;
@@ -147,41 +171,37 @@ void main(){
 
     float distance = 0.0;
     for (int i = 0; i < maxSteps; ++i) {
-
-
-        float maps = map(camPos + distance * rayDir,current_time);
+        float maps = map(camPos + distance * rayDir, current_time);
         float closestDist = maps;
-       
-        
 
         if (closestDist < epsilon) {
             vec3 hitPoint = camPos + distance * rayDir;
-            vec3 normal = computeNormal(hitPoint, vec3(0.5, 0.3, 0.3)); // Calculate normal
-
+            vec3 normal = computeNormal(hitPoint, vec3(0.5, 0.3, 0.3));
 
             float depthIntensity = 1.0 + smoothstep(0.0, 0., distance / maxDist);
 
+            // Check if the point lies on a grid line
+            bool isGridLineX = mod(hitPoint.x, 1.0) < 0.02;
+            bool isGridLineZ = mod(hitPoint.z, 1.0) < 0.02;
 
-
+            // Color the ground based on grid lines
+            vec3 groundColor = isGridLineX || isGridLineZ ? vec3(0.0, 1.0, 0.0) : vec3(0.0); // Green lines, black ground
+            vec3 finalColor = groundColor;
 
             // Simple diffuse lighting
-            float diffuse = max(dot(normal, normalize(vec3(0.0, -1.0, -5.0
-            ))), 0.0); // Light direction: (-0.7, 0.7, 0.7)
-             float matrixEffect = sin(time * hitPoint.x * 0.5) * cos(hitPoint.y * 20.0);
+            float diffuse = max(dot(normal, normalize(vec3(0.0, -1.0, -5.0))), 0.0);
+
+            // Modify the color based on lighting and effects
+            finalColor += vec3(0.5) * diffuse;
+
+            // Add some noise to the color
             float noiseValue = noise(hitPoint * 5.0); // Adjust the noise frequency
-            matrixEffect += noiseValue * 1.5; // Adjust noise influence
-
-            // Modify the color based on the matrix effect
-            vec3 color = vec3(0.12, 1.0, 0.0); // Base color
-            vec3 finalColor = color + matrixEffect * vec3(0.5, 0.5, 0.5); // Add matrix effect
-            //vec3 finalColor = vec3(depthIntensity);;
-
-
+            finalColor += noiseValue * 0.1; // Adjust noise influence
 
             FragColor = vec4(finalColor, 1.0);
             return;
         }
-        
+
         distance -= closestDist;
         if (distance > maxDist) break;
     }
