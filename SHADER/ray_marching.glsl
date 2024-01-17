@@ -50,6 +50,8 @@ float sdVerticalCapsule( vec3 p, float h, float r )
   return length( p ) - r;
 }
 
+
+
 vec3 boxGradient(vec3 p, vec3 rad) {
     vec3 d = abs(p) - rad;
     vec3 s = sign(p);
@@ -72,12 +74,24 @@ vec3 computeNormal(vec3 p, vec3 boxDimensions) {
 
 vec3 computeBoxPosition(float time) {
     // Modify the position of the box based on time
-    float amplitude = 0.5; // Adjust the amplitude of the movement
-    float speed = 1.0; // Adjust the speed of the movement
-    float yOffset = sin(time * speed) * amplitude; // Calculate the y offset
-    float xOffset = sin(time * speed) * amplitude; // Calculate the x offset
-    return vec3(0, 0, time * -4); // The new position of the box
+    float amplitude = 2.0; // Adjust the amplitude of the movement
+    float speed = 2.0; // Adjust the speed of the movement
+
+    float circularMotion = sin(time * speed) * amplitude;
+    float yOffset = circularMotion * cos(time * speed);
+    float xOffset = circularMotion * sin(time * speed);
+
+    // Apply smoothstep to control the motion
+    float smoothThreshold = 15.0; // Adjust the threshold for smoothstep
+    float smoothMotion = smoothstep(-smoothThreshold, smoothThreshold, circularMotion);
+
+    // Interpolate between circular motion and a linear path based on smoothstep
+    vec3 linearMotion = vec3(time * 0.4, time * 0.4, -4); // Linear motion path
+    vec3 finalPosition = vec3(0,0,-6);
+
+    return finalPosition; 
 }
+
 
 vec3 rotate(vec3 p, vec3 angles) {
     float cX = cos(angles.x);
@@ -96,7 +110,7 @@ vec3 rotate(vec3 p, vec3 angles) {
     return rotX * rotY * rotZ * p;
 }
 
-float opRepetition(vec3 p, vec3 s, vec3 repetitions ){
+float opRepetition(vec3 p, vec3 s, float repetitions ){
 vec3 q = p - s*clamp(round(p/s),-1,1);
 return sdBox(q,s);
 }
@@ -128,12 +142,81 @@ float opSmoothUnion( float d1, float d2, float k )
     return mix( d2, d1, h ) - k*h*(1.0-h);
 }
 
+float opRepetition(vec3 p, vec3 s,vec3 primitive )
+{
+    vec3 q = p - s*round(p/s);
+    return length( q );
+}
 
+float sdCylinder( vec3 p, vec3 c )
+{
+  return length(p.xz-c.xy)-c.z;
+}
+
+
+
+float sdCutHollowSphere( vec3 p, float r, float h, float t )
+{
+  // sampling independent computations (only depend on shape)
+  float w = sqrt(r*r-h*h);
+  
+  // sampling dependant computations
+  vec2 q = vec2( length(p.xz), p.y );
+  return ((h*q.x<w*q.y) ? length(q-vec2(w,h)) : 
+                          abs(length(q)-r) ) - t;
+}
+float repeated(vec3 p, float s)
+{
+    vec3 id = round(p / s);
+    vec3 o = sign(p - s * id); // neighbor offset direction
+    
+    float d = 1e20;
+    for (int j = 0; j < 2; j++)
+        for (int i = 0; i < 2; i++)
+            for (int k = 0; k < 2; k++)
+            {
+                vec3 rid = id + vec3(i, j, k) * o;
+                vec3 r = p - s * rid;
+
+
+                float timeEffect = sin(time);
+
+                float animated = sin(r.x * 5.0 + timeEffect) * cos(r.y * 5.0) * sin(r.z * 1.0);
+
+                // Twisted and warped pattern
+                float twisted = cos(r.x * time) * cos(r.y * time) * cos(r.z * time);
+                float warped = sin(r.x * 1.0) * sin(r.y * 1.0) * sin(r.z * 1.0);
+                
+                d = min(d, sdVerticalCapsule(r * twisted, 1.5, 0.05));
+            }
+    return d;
+}
+
+
+float repetition_rotationals( vec3 p, int n )
+{
+    float sp = 6.283185/float(n);
+    float an = atan(p.y, p.x);
+    float id = floor(an/sp);
+
+    float a1 = sp*(id+0.0);
+    float a2 = sp*(id+1.0);
+
+
+    // Adjust the arguments for the mat3 constructor based on your needs
+    mat3 rotationMatrix1 = mat3(cos(a1), -sin(a1), 0.0, sin(a1), cos(a1), 0.0, 0.0, 0.0, 1.0);
+    mat3 rotationMatrix2 = mat3(cos(a2), -sin(a2), 0.0, sin(a2), cos(a2), 0.0, 0.0, 0.0, 1.0);
+
+    vec3 r1 = rotationMatrix1 * p;
+    vec3 r2 = rotationMatrix2 * p;
+
+    return min(sdf_sphere_1(r1,1 /* radius */), sdf_sphere_1(r2, 1/* radius */));
+}
 
 float map(vec3 p,float time){
 
 
-vec3 spherePos = vec3( sin(time) * 2,0,0);
+vec3 spherePos = vec3(0,sin(time) * 2,1);
 vec3 boxPos = vec3(0,-2,2.5);
 
 vec3 linePos = vec3( 0,0,5);
@@ -144,16 +227,26 @@ zx = fract(p) - .45;
 
 
 
-float sphere = sdf_sphere_1(p - spherePos,0.5);
+float sphere = sdf_sphere_1(p - spherePos,1.0);
+
+float cylinder = sdCylinder(p,vec3(1.0));
+
+
 float line = sdVerticalCapsule(zx,0.25,0.252);
 
-float box = sdBox(p,vec3(0.5));
+float box = sdBox(p,vec3(1.01));
+
 float ground1 = -p.y + .75;
 float ground2 = p.y + .75;
 
-float combined =  opSmoothUnion(ground1,sphere,1.0);
 
-return ground1;
+
+float test = repeated(p,2.5);
+
+
+float combined =  opSmoothUnion(ground1,box,sin(time) * 0.75);
+
+return test;
 }
 void main() {
     vec3 repetitions = vec3(1.0);
@@ -192,7 +285,7 @@ void main() {
             float diffuse = max(dot(normal, normalize(vec3(0.0, -1.0, -5.0))), 0.0);
 
             // Modify the color based on lighting and effects
-            finalColor += vec3(0.5) * diffuse;
+            finalColor += vec3(0.0) * diffuse;
 
             // Add some noise to the color
             float noiseValue = noise(hitPoint * 5.0); // Adjust the noise frequency
