@@ -8,8 +8,11 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
+float intensity_value;
+
 
 glm::vec3 camera_pos;
+glm::vec3 light_pos = glm::vec3(0,0,0);
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -176,10 +179,15 @@ float vertices[] = {
         // render container
 
         myshader.setFloat("time",get_time);
+        myshader.setFloat("inten_value",intensity_value);
         myshader.setVec2("resolution",screen_resolution);
         myshader.setVec3("camera", camera_pos);
         myshader.setVec4("Back_ground_color", background_color);
         myshader.setVec2("iMouse", mouse_pos);
+        myshader.setVec3("Light_direction",light_pos);
+
+    light_pos = glm::vec3(sin(get_time) * 2,0,0);
+    
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 
@@ -227,7 +235,10 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     mouse_pos.y = ypos;
 
     std::cout << "Mouse Position_x: " << mouse_pos.x << std::endl;
-    std::cout << "Mouse Position_y: " << mouse_pos.y << std::endl;
+    std::cout << "Mouse Position_y: " << light_pos.x << std::endl;
+
+
+    std::cout << intensity_value << std::endl;
 }
 
 

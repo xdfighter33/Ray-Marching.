@@ -9,10 +9,19 @@ uniform vec2 iMouse;
 uniform vec2 resolution;
 uniform float time;
 uniform vec4 Back_ground_color;
+uniform vec3 Light_direction;
+
+uniform float inten_value;
 
 float noise(vec3 p) {
     return fract(sin(dot(p, vec3(12.9898, 78.233, 98.422))) * 43758.5453);
 }
+
+
+
+
+
+
 
 
 
@@ -52,6 +61,19 @@ float sdVerticalCapsule( vec3 p, float h, float r )
 
 
 
+
+float opCheapBend(vec3 p )
+{
+    const float k = 0.25; // or some other amount
+    float c = cos(k*p.x);
+    float s = sin(k*p.x);
+    mat2  m = mat2(c,-s,s,c);
+    vec3  q = vec3(m*p.xy,p.z);
+    return sdBox(q,vec3(1.0));
+}
+
+
+
 vec3 boxGradient(vec3 p, vec3 rad) {
     vec3 d = abs(p) - rad;
     vec3 s = sign(p);
@@ -87,7 +109,7 @@ vec3 computeBoxPosition(float time) {
 
     // Interpolate between circular motion and a linear path based on smoothstep
     vec3 linearMotion = vec3(time * 0.4, time * 0.4, -4); // Linear motion path
-    vec3 finalPosition = vec3(0,0,-6);
+    vec3 finalPosition = vec3(0,0, -8);
 
     return finalPosition; 
 }
@@ -165,6 +187,35 @@ float sdCutHollowSphere( vec3 p, float r, float h, float t )
   return ((h*q.x<w*q.y) ? length(q-vec2(w,h)) : 
                           abs(length(q)-r) ) - t;
 }
+
+float opRev(vec3 p, float o){
+//Elongates????
+   // o += time * 0.5;
+    vec2 x = vec2(length(p.xy) - o, p.y);
+
+    return sdBox(vec3(x.x,x.y,0.0),vec3(1.25));
+}
+
+float opElongate(vec3 p, vec3 h){
+
+    vec3 q = p - clamp(p,-h,h);
+    return sdBox(q,vec3(1.));
+}
+
+float opRound(vec3 p,float rad){
+
+    return sdBox(p - rad,vec3(1.25));
+}
+
+float opDisplace(vec3 p )
+{
+    float d1 = sdf_sphere_1(p,0.5);
+    float d2 = cos( time ) * p.x;
+    return d1+d2;
+}
+
+
+
 float repeated(vec3 p, float s)
 {
     vec3 id = round(p / s);
@@ -187,7 +238,11 @@ float repeated(vec3 p, float s)
                 float twisted = cos(r.x * time) * cos(r.y * time) * cos(r.z * time);
                 float warped = sin(r.x * 1.0) * sin(r.y * 1.0) * sin(r.z * 1.0);
                 
-                d = min(d, sdVerticalCapsule(r * twisted, 1.5, 0.05));
+               // d = min(d, sdVerticalCapsule(r * twisted, 1.5, 0.05));
+
+             //d = min(d,opRev(r,1.55));
+
+             d = min(d,opRev(r,5.5));
             }
     return d;
 }
@@ -213,12 +268,21 @@ float repetition_rotationals( vec3 p, int n )
     return min(sdf_sphere_1(r1,1 /* radius */), sdf_sphere_1(r2, 1/* radius */));
 }
 
+
+
+
+vec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d ){
+    return a + b*cos( 6.28318*(c*t+d));
+}
+
+
+
 float map(vec3 p,float time){
 
 
-vec3 spherePos = vec3(0,sin(time) * 2,1);
-vec3 boxPos = vec3(0,-2,2.5);
-
+vec3 spherePos = vec3(sin(time) * 10,0,1);
+vec3 boxPos = vec3(0,-2,0);
+vec3 infBoxPos = vec3(sin(time * 2),-5,0);
 vec3 linePos = vec3( 0,0,5);
 
 vec3 zx = p;
@@ -227,11 +291,11 @@ zx = fract(p) - .45;
 
 
 
-float sphere = sdf_sphere_1(p - spherePos,1.0);
+float sphere = sdf_sphere_1(p - spherePos,1.25);
 
 float cylinder = sdCylinder(p,vec3(1.0));
 
-
+float bent_box = opCheapBend(p);
 float line = sdVerticalCapsule(zx,0.25,0.252);
 
 float box = sdBox(p,vec3(1.01));
@@ -241,12 +305,31 @@ float ground2 = p.y + .75;
 
 
 
-float test = repeated(p,2.5);
+float test = repeated(p - boxPos,5.5);
 
+float test1 = opRev(p,1.25);
+float test2 = opElongate(p,vec3(1.5));
 
-float combined =  opSmoothUnion(ground1,box,sin(time) * 0.75);
+float test3 = opRound(p - infBoxPos,5.5);
+float combined =  smin(ground2,sphere,1.0);
 
-return test;
+float test4 = opDisplace(p);
+//return smoothstep(ground1,box,1.0);
+//return smin(ground1,box,10.5);
+return sphere;
+}
+
+float shadow(vec3 ro,  vec3 rd, float mint, float maxt )
+{
+    float t = mint;
+    for( int i=0; i<256 && t<maxt; i++ )
+    {
+        float h = map(ro + rd * t,time);
+        if( h<0.001 )
+            return 0.0;
+        t += h;
+    }
+    return 1.0;
 }
 void main() {
     vec3 repetitions = vec3(1.0);
@@ -261,6 +344,10 @@ void main() {
     const int maxSteps = 100;
     const float maxDist = 100.0;
     const float epsilon = 0.001;
+
+
+ float shadowIntensity = shadow(camPos, normalize(vec3(0.0, -1.0, -4.0)), 0.001, maxDist);
+
 
     float distance = 0.0;
     for (int i = 0; i < maxSteps; ++i) {
@@ -284,14 +371,44 @@ void main() {
             // Simple diffuse lighting
             float diffuse = max(dot(normal, normalize(vec3(0.0, -1.0, -5.0))), 0.0);
 
+
+
+
+
+            //Setting up toon Shader!
+
+            float intensity; 
+            vec3 toon_color;
+
+            intensity = dot(Light_direction,normalize(normal));
+
+            if(intensity > 0.95){
+                toon_color = vec3(0.85, 0.39, 0.85);
+            }
+            else if(intensity < 0.95){
+                toon_color = vec3(0.95, 0.39, 0.39);
+            }
+
+            intensity = inten_value;
             // Modify the color based on lighting and effects
             finalColor += vec3(0.0) * diffuse;
 
             // Add some noise to the color
-            float noiseValue = noise(hitPoint * 5.0); // Adjust the noise frequency
+            float noiseValue = noise(hitPoint * 10.0); // Adjust the noise frequency
             finalColor += noiseValue * 0.1; // Adjust noise influence
 
-            FragColor = vec4(finalColor, 1.0);
+
+            vec3 a =  vec3(0.5, 0.5, 0.5);
+            vec3 b = vec3(0.5, 0.5, 0.5);
+            vec3 c = vec3(1.0, 1.0, 1.0);
+            vec3 d = vec3(0.00, 0.10, 0.20);
+
+
+
+
+         // FragColor = vec4(palette(sin(time) * .25,a,b,c,d),1.0);
+            FragColor = vec4(toon_color, 1.0);
+
             return;
         }
 

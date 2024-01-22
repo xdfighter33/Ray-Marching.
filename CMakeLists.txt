@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required (VERSION 3.20)
 project ("Ray_Marching")
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Add source to this project's executable.
@@ -35,7 +35,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(glm)
 
-
+#Fetch imGui!
+FetchContent_Declare(
+        imgui
+        GIT_REPOSITORY https://github.com/ocornut/imgui
+        GIT_TAG master
+)
+FetchContent_MakeAvailable(imgui)
 
 include_directories(${glm_SOURCE_DIR}/include)
 
@@ -50,4 +56,4 @@ get_filename_component(SHADER_ABSOLUTE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/SHADER"
 target_compile_definitions(Ray_Marching PRIVATE SHADER_DIR="${SHADER_ABSOLUTE_PATH}")
 
 # Link libraries
-target_link_libraries(Ray_Marching glfw glad glm)
+target_link_libraries(Ray_Marching glfw glad glm imgui)
