@@ -148,7 +148,7 @@ float vertices[] = {
     stbi_image_free(data);
 
     // Setting up Camera
-    camera_pos = glm::vec3{0.0f,0.0f,-2.0f};
+    camera_pos = glm::vec3{0.0f,-2.0f,-2.0f};
     // render loop
     while (!glfwWindowShouldClose(window))
     {
@@ -186,7 +186,7 @@ float vertices[] = {
         myshader.setVec2("iMouse", mouse_pos);
         myshader.setVec3("Light_direction",light_pos);
 
-    light_pos = glm::vec3(sin(get_time) * 2,0,0);
+    light_pos = glm::vec3(0,-2,0);
     
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
