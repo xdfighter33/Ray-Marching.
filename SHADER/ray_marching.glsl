@@ -10,7 +10,9 @@ uniform vec2 resolution;
 uniform float time;
 uniform vec4 Back_ground_color;
 uniform vec3 Light_direction;
-
+uniform vec3 sky_light_direction;
+uniform vec3 camPos;
+uniform vec3 camera; 
 uniform float inten_value;
 
 float noise(vec3 p) {
@@ -42,6 +44,9 @@ float marble(vec3 p) {
     return turbulence;
 }
 
+vec3 computeSphereNormals(vec3 p){
+   return normalize(p);
+}
 
 
 float sdf_sphere_1(vec3 p, float r){
@@ -111,7 +116,9 @@ vec3 computeBoxPosition(float time) {
     vec3 linearMotion = vec3(time * 0.4, time * 0.4, -4); // Linear motion path
     vec3 finalPosition = vec3(0,0, -8);
 
-    return finalPosition; 
+    vec3 cpu_cam_pos = camera;
+
+    return cpu_cam_pos; 
 }
 
 
@@ -276,12 +283,19 @@ vec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d ){
 }
 
 
+vec3 computerSphereNormal(vec3 p, vec3 sphereCenter){
+    return normalize(p - sphereCenter);
+}
+
+
+
+
 
 float map(vec3 p,float time){
 
 
-vec3 spherePos = vec3(0,0,sin(time) * 4);
-vec3 boxPos = vec3(0,-2,0);
+vec3 spherePos = vec3(0,-2,sin(time) * 5 );
+vec3 boxPos = vec3(-2,0,00);
 vec3 infBoxPos = vec3(sin(time * 2),-5,0);
 vec3 linePos = vec3( 0,0,5);
 
@@ -295,16 +309,16 @@ zx = fract(p) - .45;
 
 
 
-float sphere = sdf_sphere_1(p - spherePos,1.25);
+float sphere = sdf_sphere_1(p - spherePos,1.0);
 
-
-float physical_light = sdf_sphere_1(p -physical_light_pos, 0.25);
+ 
+float physical_light = sdf_sphere_1(p -physical_light_pos, 1.75);
 float cylinder = sdCylinder(p,vec3(1.0));
 
 float bent_box = opCheapBend(p);
 float line = sdVerticalCapsule(zx,0.25,0.252);
 
-float box = sdBox(p,vec3(1.01));
+float box = sdBox(p - boxPos,vec3(1.));
 
 float ground1 = -p.y + .75;
 float ground2 = p.y + .75;
@@ -313,7 +327,7 @@ float ground2 = p.y + .75;
 
 float test = repeated(p - boxPos,5.5);
 
-float test1 = opRev(p,1.25);
+float test1 = opRev(p,0.25);
 float test2 = opElongate(p,vec3(1.5));
 
 float test3 = opRound(p - infBoxPos,5.5);
@@ -322,9 +336,21 @@ float combined =  smin(ground1,sphere,1.0);
 float test4 = opDisplace(p);
 //return smoothstep(ground1,box,1.0);
 //return smin(ground1,box,10.5);
-return sphere;
+return box;
 }
 
+
+vec3 computeNormalTime(vec3 p, float epsilon, float time) {
+    // Compute the gradient using central differences
+    float dx = (map(p + vec3(epsilon, 0.0, 0.0), time) - map(p - vec3(epsilon, 0.0, 0.0), time)) / (2.0 * epsilon);
+    float dy = (map(p + vec3(0.0, epsilon, 0.0), time) - map(p - vec3(0.0, epsilon, 0.0), time)) / (2.0 * epsilon);
+    float dz = (map(p + vec3(0.0, 0.0, epsilon), time) - map(p - vec3(0.0, 0.0, epsilon), time)) / (2.0 * epsilon);
+
+    // Normalize the gradient to get the normal
+    return normalize(vec3(dx, dy, dz));
+
+
+}
 
 
 
@@ -342,6 +368,8 @@ float shadow(vec3 ro,  vec3 rd, float mint, float maxt )
     }
     return 3.0;
 }
+
+
 void main() {
     vec3 repetitions = vec3(1.0);
     vec2 uv = gl_FragCoord.xy / resolution.xy;
@@ -350,7 +378,7 @@ void main() {
     uv.x *= resolution.x / resolution.y;
     float current_time = time;
     vec3 camPos = computeBoxPosition(current_time);
-    vec3 rayDir = normalize(vec3(uv, -3.0));
+    vec3 rayDir = normalize(vec3(uv, -2));
 
     const int maxSteps = 100;
     const float maxDist = 100.0;
@@ -369,7 +397,10 @@ float shadowIntensity = shadow(camPos, normalize(Light_direction), 0.001, maxDis
 
         if (closestDist < epsilon) {
             vec3 hitPoint = camPos + distance * rayDir;
-            vec3 normal = computeNormal(hitPoint, vec3(0.5, 0.3, 0.3));
+         //   vec3 normal = computeNormal(hitPoint, vec3(0.5, 0.3, 0.3));
+          //  vec3 normal = computerSphereNormal(hitPoint,sdf);
+//            vec3 normal = computeNormalTime(hitPoint,0.001,current_time);
+              vec3 normal = computeSphereNormals(hitPoint);
 
             float depthIntensity = 1.0 + smoothstep(0.0, 0., distance / maxDist);
              
@@ -379,92 +410,121 @@ float shadowIntensity = shadow(camPos, normalize(Light_direction), 0.001, maxDis
 
             // Color the ground based on grid lines
             //vec3 groundColor = isGridLineX || isGridLineZ ? vec3(0.0, 1.0, 0.0) : vec3(0.0); // Green lines, black ground
-            vec3 finalColor;
+         
 
-            // Simple diffuse lighting
-   
-            float diffuse = max(dot(normal, normalize(vec3(0.0, 0, 0))), 0.0); 
-
-        //Setting up Phong lighting 
-         vec3 lightDir = normalize(Light_direction);
-            vec3 viewDir = normalize(camPos - hitPoint);
-            vec3 reflectDir = reflect(-lightDir, normal);
-
-            // Ambient component
-            float ambientStrength = 1.5;
-            vec3 ambient = ambientStrength * vec3(1.0);
-
-            // Diffuse components
-            float light_intensity = 2;
-            float diffuseStrength = max(dot(normal, lightDir), 0.0) * light_intensity; 
-            vec3 diffuses = diffuseStrength * vec3(1.0);
-
-            // Specular component
-            float specularStrength = 0.0;
-            float shininess = 100.0;
-            float specular = specularStrength * pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-
-            // Combine all components
-            vec3 pho_color = vec3(0.09, 0.24, 0.61);
-            vec3 phongColor = (ambient + diffuses + specular) * pho_color;
-
-            // Toon shading
-
-            
+              vec3 lightDir = normalize(Light_direction);
+              vec3 sky_light_dir = normalize(sky_light_direction);
 
 
-            //Setting up toon Shader!
 
-            float intensity; 
-            vec3 toon_color;
 
-            intensity = dot(Light_direction,normalize(normal));
+            // Toon Shader code
 
- if (intensity > 0.8) {
-    toon_color = vec3(0.22, 1.0, 0.0);
-} else if (intensity > 0.5) {
-    toon_color = vec3(1.0, 0.0, 0.0);
-} else {
-    toon_color = vec3(0.0, 0.35, 0.95);  // Adjust the color for low intensity
+             float sky_intensity = dot(sky_light_direction, normalize(normal));
+        vec3 sky_toonColor;
+
+if (sky_intensity > 0.9) {
+    sky_toonColor = vec3(1.0, 0.0, 0.0);
+} else if (sky_intensity > 0.8) {
+    sky_toonColor = vec3(0.0, 1.0, 0.38);
+}
+else if (sky_intensity > 0.5) {
+    
+    sky_toonColor = vec3(1.0, 0.97, 0.0);
+    } else {
+    sky_toonColor = vec3(1.0); // Default color for lower intensities
 }
 
+        float sky_celShadeLevels =  5;
+        sky_toonColor *= ceil(sky_intensity * sky_celShadeLevels);
 
 
-            float celShadeLevels = 2.0;
+            // MAIN SKY LIGHT
+
+            // SKy = Sky_light 
 
 
-            float blendFactor = smoothstep(0.0, 1.0, intensity);
+            // Sky light Diffuse 
+            float sky_diff_strengt = 5.0;
+            float sky_diffuse_strength = max(dot(normal,sky_light_dir),0.0);
+            vec3 sky_diffuse_color = sky_toonColor;
+            vec3 sky_diffuse = sky_diffuse_strength * sky_diffuse_color;
+
+            //Skylight Ambient 
+
+            float sky_ambient_strength = 5.0; 
+            vec3  sky_ambient_color = sky_toonColor;
+            vec3 sky_ambient =  sky_ambient_color * sky_ambient_strength;
 
 
-            intensity = dot(Light_direction,normalize(normal));
-            toon_color *= ceil(intensity * celShadeLevels);
 
-      
 
+            // Tooon Shader 
+    float intensity = dot(Light_direction, normalize(normal));
+        vec3 toonColor;
+
+        if (intensity > 0.9) {
+            toonColor = vec3(1.0, 0.0, 0.85);
+        } else if (intensity > 0.3) {
+   
+            toonColor = vec3(0.0, 1.0, 0.87); 
+        }  else {
+            toonColor = vec3(0.0);
+        } 
+
+             // Diffuse component
+
+
+        float dif_strength = 2.0;
+        float diffuseStrength = max(dot(normal, lightDir), 0.0);
+        vec3 diffuse_color = vec3(0.95, 0.74, 0.0);
+        vec3 diffuse = diffuseStrength * toonColor;
+
+        // Specular component (Blinn-Phong)
+        vec3 viewDir = normalize(camPos - hitPoint);
+        vec3 halfwayDir = normalize(lightDir + viewDir);
+
+        float shininess = 0.0;
+        float specularStrength = pow(max(dot(normal, halfwayDir), 0.0), shininess);
+        vec3 specularColor = specularStrength * vec3(1.0) * shininess;
+
+        
+
+        // Ambient component
+        float ambientStrength = 2.25;
+        vec3 ambient_color = vec3(0.8, 0.0, 0.0);
+        vec3 ambient = ambientStrength * toonColor;
+
+
+        vec3 biPhong_use_color = vec3(0.0, 0.24, 1.0);
+
+        // Combine all components
   
-                
-            // Modify the color based on lighting and effects
-            //finalColor += vec3(0.0) * diffuse;
-            finalColor = mix(toon_color,phongColor,blendFactor);
+        vec3 total_ambient = ambient + sky_ambient;
+        vec3 total_diffuse = diffuse + sky_diffuse;
+
+
+         vec3 biPhongColor = (sky_ambient + sky_diffuse + specularColor);
+
+        // Mix Bi-Phong and Toon colors
+        vec3 finalColor = biPhongColor;
+        
 
 
 
+         
             // Add some noise to the color
-            float noiseValue = noise(hitPoint * .0); // Adjust the noise frequency
-            //finalColor += noiseValue * 0.1; // Adjust noise influence
+            float noiseValue = noise(hitPoint * 0.5); // Adjust the noise frequency
+//            finalColor += noiseValue * 1.5; // Adjust noise influence
 
 
-            vec3 a =  vec3(0.5, 0.5, 0.5);
-            vec3 b = vec3(0.5, 0.5, 0.5);
-            vec3 c = vec3(1.0, 1.0, 1.0);
-            vec3 d = vec3(0.00, 0.10, 0.20);
+          
 
-            vec3 shadowColor = vec3(1.0, 0.0, 0.0);  // Adjust the shadow color
+          //  vec3 shadowColor = vec3(0.5);  // Adjust the shadow color
 
-         //   finalColor = mix(shadowColor,finalColor,shadowIntensity);
+            //finalColor = mix(finalColor,shadowColor,shadowIntensity);
 
-         // FragColor = vec4(palette(sin(time) * .25,a,b,c,d),1.0);
-            FragColor = vec4(finalColor, 1.0);
+         FragColor = vec4(finalColor, 1.0);
 
             return;
         }

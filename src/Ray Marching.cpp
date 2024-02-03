@@ -12,7 +12,8 @@ float intensity_value;
 
 
 glm::vec3 camera_pos;
-glm::vec3 light_pos = glm::vec3(0,0,0);
+glm::vec3 light_pos;
+glm::vec3 sky_light_pos;
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -148,7 +149,7 @@ float vertices[] = {
     stbi_image_free(data);
 
     // Setting up Camera
-    camera_pos = glm::vec3{0.0f,-2.0f,-2.0f};
+    camera_pos = glm::vec3{0.0f,0.0f,-4.0f};
     // render loop
     while (!glfwWindowShouldClose(window))
     {
@@ -177,16 +178,19 @@ float vertices[] = {
         myshader.use();
 
         // render container
-
+    light_pos = glm::vec3(0,2,2);
+    sky_light_pos = glm::vec3(0,0,-2);
+    camera_pos = glm::vec3(0,0,-5);
         myshader.setFloat("time",get_time);
         myshader.setFloat("inten_value",intensity_value);
         myshader.setVec2("resolution",screen_resolution);
         myshader.setVec3("camera", camera_pos);
+        myshader.setVec3("sky_light_direction",sky_light_pos);
         myshader.setVec4("Back_ground_color", background_color);
         myshader.setVec2("iMouse", mouse_pos);
         myshader.setVec3("Light_direction",light_pos);
 
-    light_pos = glm::vec3(0,-2,0);
+
     
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
