@@ -178,8 +178,9 @@ float vertices[] = {
         myshader.use();
 
         // render container
-    light_pos = glm::vec3(0,2,2);
-    sky_light_pos = glm::vec3(0,0,-2);
+    light_pos = glm::vec3(2,0,-2);
+
+    sky_light_pos = glm::vec3(0,-0.35 , 0);
     camera_pos = glm::vec3(0,0,-5);
         myshader.setFloat("time",get_time);
         myshader.setFloat("inten_value",intensity_value);
@@ -238,8 +239,8 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     mouse_pos.x = xpos;
     mouse_pos.y = ypos;
 
-    std::cout << "Mouse Position_x: " << mouse_pos.x << std::endl;
-    std::cout << "Mouse Position_y: " << light_pos.x << std::endl;
+ //   std::cout << "Mouse Position_x: " << mouse_pos.x << std::endl;
+    std::cout << "Sky light  Position_Z: " << sky_light_pos.y << std::endl;
 
 
     std::cout << intensity_value << std::endl;

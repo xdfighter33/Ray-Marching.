@@ -295,7 +295,7 @@ float map(vec3 p,float time){
 
 
 vec3 spherePos = vec3(0,-2,sin(time) * 5 );
-vec3 boxPos = vec3(-2,0,00);
+vec3 boxPos = vec3(0,0,0);
 vec3 infBoxPos = vec3(sin(time * 2),-5,0);
 vec3 linePos = vec3( 0,0,5);
 
@@ -335,8 +335,8 @@ float combined =  smin(ground1,sphere,1.0);
 
 float test4 = opDisplace(p);
 //return smoothstep(ground1,box,1.0);
-//return smin(ground1,box,10.5);
-return box;
+return min(sphere,smin(ground1,box,10.5));
+//return box;
 }
 
 
@@ -352,7 +352,9 @@ vec3 computeNormalTime(vec3 p, float epsilon, float time) {
 
 }
 
-
+vec3 toonShader(float intensity, vec3 BaseColor, float numLevels) {
+return BaseColor * ceil(intensity * numLevels) / numLevels;
+}
 
 
 
@@ -366,7 +368,7 @@ float shadow(vec3 ro,  vec3 rd, float mint, float maxt )
             return 0.0;
         t += h;
     }
-    return 3.0;
+    return 1.0;
 }
 
 
@@ -386,7 +388,8 @@ void main() {
 
 
 // float shadowIntensity = shadow(camPos, normalize(vec3(0.0, -1.0, -4.0)), 0.001, maxDist);
-float shadowIntensity = shadow(camPos, normalize(Light_direction), 0.001, maxDist);
+float light_shadowIntensity = shadow(camPos, normalize(Light_direction), 0.001, maxDist);
+float sky_shadowIntensity = shadow(camPos, normalize(sky_light_direction), 0.001, maxDist);
 
 
 
@@ -399,8 +402,8 @@ float shadowIntensity = shadow(camPos, normalize(Light_direction), 0.001, maxDis
             vec3 hitPoint = camPos + distance * rayDir;
          //   vec3 normal = computeNormal(hitPoint, vec3(0.5, 0.3, 0.3));
           //  vec3 normal = computerSphereNormal(hitPoint,sdf);
-//            vec3 normal = computeNormalTime(hitPoint,0.001,current_time);
-              vec3 normal = computeSphereNormals(hitPoint);
+            vec3 normal = computeNormalTime(hitPoint,0.001,current_time);
+            //  vec3 normal = computeSphereNormals(hitPoint);
 
             float depthIntensity = 1.0 + smoothstep(0.0, 0., distance / maxDist);
              
@@ -423,19 +426,20 @@ float shadowIntensity = shadow(camPos, normalize(Light_direction), 0.001, maxDis
              float sky_intensity = dot(sky_light_direction, normalize(normal));
         vec3 sky_toonColor;
 
-if (sky_intensity > 0.9) {
-    sky_toonColor = vec3(1.0, 0.0, 0.0);
-} else if (sky_intensity > 0.8) {
-    sky_toonColor = vec3(0.0, 1.0, 0.38);
+if (sky_intensity > 0.95) {
+    sky_toonColor = vec3(1.0,0.5,0.5);
+} else if (sky_intensity > 0.5) {
+    sky_toonColor = vec3(0.6,0.3,0.3);
 }
-else if (sky_intensity > 0.5) {
+else if (sky_intensity > 0.25) {
     
-    sky_toonColor = vec3(1.0, 0.97, 0.0);
-    } else {
-    sky_toonColor = vec3(1.0); // Default color for lower intensities
+    sky_toonColor = vec3(0.4,0.2,0.2);
+    }
+    else {
+    sky_toonColor = vec3(0.6,0.3,0.3); // Default color for lower intensities
 }
 
-        float sky_celShadeLevels =  5;
+        float sky_celShadeLevels =  2;
         sky_toonColor *= ceil(sky_intensity * sky_celShadeLevels);
 
 
@@ -475,7 +479,7 @@ else if (sky_intensity > 0.5) {
              // Diffuse component
 
 
-        float dif_strength = 2.0;
+        float dif_strength = 2.5;
         float diffuseStrength = max(dot(normal, lightDir), 0.0);
         vec3 diffuse_color = vec3(0.95, 0.74, 0.0);
         vec3 diffuse = diffuseStrength * toonColor;
@@ -491,7 +495,7 @@ else if (sky_intensity > 0.5) {
         
 
         // Ambient component
-        float ambientStrength = 2.25;
+        float ambientStrength = 2.50;
         vec3 ambient_color = vec3(0.8, 0.0, 0.0);
         vec3 ambient = ambientStrength * toonColor;
 
@@ -504,7 +508,7 @@ else if (sky_intensity > 0.5) {
         vec3 total_diffuse = diffuse + sky_diffuse;
 
 
-         vec3 biPhongColor = (sky_ambient + sky_diffuse + specularColor);
+         vec3 biPhongColor = (total_ambient + total_diffuse + specularColor);
 
         // Mix Bi-Phong and Toon colors
         vec3 finalColor = biPhongColor;
@@ -520,11 +524,12 @@ else if (sky_intensity > 0.5) {
 
           
 
-          //  vec3 shadowColor = vec3(0.5);  // Adjust the shadow color
+            vec3 shadowColor = vec3(0.2);  // Adjust the shadow color
 
-            //finalColor = mix(finalColor,shadowColor,shadowIntensity);
-
-         FragColor = vec4(finalColor, 1.0);
+      //      finalColor = mix(biPhongColor,shadowColor,sky_shadowIntensity);
+           
+         //finalColor = toonShader(1.0,finalColor,3.0);   
+         FragColor = vec4(sky_toonColor, 1.0);
 
             return;
         }
