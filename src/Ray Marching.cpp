@@ -1,6 +1,12 @@
 ﻿#include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include "imgui.h"
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_opengl3.h>
+#define GL_SILENCE_DEPRECATION
+#if defined(IMGUI_IMPL_OPENGL_ES2)
+#endif
 #include <glm/gtc/matrix_transform.hpp> 
 #include <glm/gtc/type_ptr.hpp>
 #include "Shader.h"
@@ -10,10 +16,16 @@
 
 float intensity_value;
 
+#if defined(_MSC_VER) && (_MSC_VER >= 1900) && !defined(IMGUI_DISABLE_WIN32_FUNCTIONS)
+#pragma comment(lib, "legacy_stdio_definitions")
+#endif
+
+
 
 glm::vec3 camera_pos;
-glm::vec3 light_pos;
+glm::vec3 Light_pos;
 glm::vec3 sky_light_pos;
+glm::vec3 global_light_pos;
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -41,6 +53,11 @@ int main()
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #endif
 
+
+
+
+
+
     // glfw window creation
     // --------------------
     GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "Ray Marching", NULL, NULL);
@@ -60,6 +77,49 @@ int main()
         std::cout << "Failed to initialize GLAD" << std::endl;
         return -1;
     }
+
+
+    // ImGui Initalize and configure 
+    // -----------------------------
+
+#if defined(__APPLE__)
+    // GL 3.2 + GLSL 330
+    const char* glsl_version = "#version 150";
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
+#endif
+
+
+IMGUI_CHECKVERSION();
+ImGui::CreateContext();
+ImGuiIO& test = ImGui::GetIO(); (void) test;
+test.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;   
+ImGui::StyleColorsDark();
+
+
+
+
+
+    // ImGui: load all IMGUI funtions
+    // ----------------------------
+
+       test.Fonts->AddFontDefault();
+
+        ImGui_ImplGlfw_InitForOpenGL(window, true);
+
+        ImGui_ImplOpenGL3_Init(glsl_version);
+     
+
+
+
+
+    bool show_test_window = true;
+    bool show_another_window = true;
+    ImVec4 test_color = ImVec4(1.0,0.0,0.0,1.0);
+
+
 
     // build and compile our shader program
     // ------------------------------------
@@ -153,6 +213,47 @@ float vertices[] = {
     // render loop
     while (!glfwWindowShouldClose(window))
     {
+        //IMGUI FRAME SETUP
+
+        ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+        
+        //ImGui varible_setup
+            float light_pos[3];
+            float skylight_pos[3];
+            float global_light[3];
+        //ImGui Window Setup
+        glm::vec3 sphere_cords;
+        if(show_test_window)
+        {
+
+               ImGui::Begin("Welcome To COnfig"); 
+            ImGui::Text("Light_1");
+            ImGui::SliderFloat("Sphere x", &light_pos[0], -5,5 );
+            ImGui::SliderFloat("Sphere y", &light_pos[1], -5,5 );
+            ImGui::SliderFloat("Sphere z", &light_pos[2], -5,5 );
+            ImGui::Text("Light_2");
+            ImGui::SliderFloat("sky_light x", &skylight_pos[0], -5,5 );
+            ImGui::SliderFloat("sky_light y", &skylight_pos[1], -5,5 );
+            ImGui::SliderFloat("sky_light z", &skylight_pos[2], -5,5 );
+            ImGui::Text("Light_3");
+            ImGui::SliderFloat("global_light x", &global_light[0], -5,5 );
+            ImGui::SliderFloat("global_light y", &global_light[1], -5,5 );
+            ImGui::SliderFloat("global_light z", &global_light[2], -5,5 );
+            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+            ImGui::Checkbox("Demo Window", &show_test_window);      
+
+
+
+            Light_pos = glm::vec3(light_pos[0],light_pos[1],light_pos[2]);
+            sky_light_pos = glm::vec3(skylight_pos[0],skylight_pos[1],skylight_pos[2]);
+            sphere_cords = glm::vec3(global_light[0],global_light[1],global_light[2]);
+            ImGui::End();   
+
+
+        }
+        
         float get_time = glfwGetTime();
         glm::vec2 screen_resolution;
         glm::vec4 background_color = glm::vec4{ 0.0f,0.0f,0.0f,0.0f };
@@ -178,29 +279,42 @@ float vertices[] = {
         myshader.use();
 
         // render container
-    light_pos = glm::vec3(2,0,-2);
 
-    sky_light_pos = glm::vec3(0,-0.35 , 0);
+   global_light_pos = glm::vec3(0,-10,0);
+   //Light_pos = glm::vec3(sin(get_time) * -9,-1.75,cos(get_time) * 9);
+
+   // sky_light_pos = glm::vec3(2.5,-1,sin(get_time) * 2);
     camera_pos = glm::vec3(0,0,-5);
+
         myshader.setFloat("time",get_time);
         myshader.setFloat("inten_value",intensity_value);
         myshader.setVec2("resolution",screen_resolution);
         myshader.setVec3("camera", camera_pos);
+        myshader.setVec3("Global_light", global_light_pos);
         myshader.setVec3("sky_light_direction",sky_light_pos);
         myshader.setVec4("Back_ground_color", background_color);
+        myshader.setVec3("sphere_cords", sphere_cords);
         myshader.setVec2("iMouse", mouse_pos);
-        myshader.setVec3("Light_direction",light_pos);
+        myshader.setVec3("Light_direction",Light_pos);
 
-
+        //ImGui Render
+        ImGui::Render();
+   
     
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData()); 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
         // -------------------------------------------------------------------------------
         glfwSwapBuffers(window);
         
     }
+
+
+    //Delete ImGui resources
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
