@@ -369,7 +369,8 @@ float test4 = opDisplace(p);
 //return smoothstep(ground1,box,1.0);
 //return min(sphere,smin(ground1,box,10.5));
 //return min(sphere,min(physical_light,light1));
-return opSmoothUnion(global_light,min(sphere,min(plane,min(light1,physical_light))),1.0);
+//return opSmoothUnion(global_light,min(box,min(sphere,min(plane,min(light1,physical_light)))),1.0);
+return min(physical_light,min(global_light,opSmoothUnion(sphere,plane,1.5)));
 //return sphere;
 //return plane;
 //return box;
@@ -453,17 +454,15 @@ float sky_shadowIntensity = shadow(camPos, normalize(sky_light_direction), 0.001
 
 
     float distance = 0.0;
+    float edge_width = 0.5;
+    float lastDistEval = 1e10;
+    float edge = 0;
     for (int i = 0; i < maxSteps; ++i) {
         float maps = map(camPos + distance * rayDir, current_time);
         float closestDist = maps;
         vec3 finalColor;
         if (closestDist < epsilon) {
             vec3 hitPoint = camPos + distance * rayDir;
-         //   vec3 normal = computeNormal(hitPoint, vec3(0.5, 0.3, 0.3));
-       //     vec3 normal = computerSphereNormal(hitPoint,sdf);
-       //     vec3 normal = computeNormalTime(hitPoint,0.001,current_time);
-            //  vec3 normal = computeSphereNormals(hitPoint);
-
             vec3 normal = computeSphNormals(hitPoint,1.0);
             vec3 plane_normal = computePlaneNormals(hitPoint,normalize(vec3(0.0,-1.0,0.0)),1.0);
             float depthIntensity = 1.0 + smoothstep(0.0, 0., distance / maxDist);
@@ -482,6 +481,8 @@ vec3 viewDirection = normalize(camPos - hitPoint);
 
 
 
+            // Edge Detectoion
+
             // Toon Shader code
 
              float sky_intensity = dot(sky_light_direction, normalize(normal));
@@ -496,20 +497,21 @@ vec3 highIntensityColor = vec3(float(0x1a) / 255.0, float(0x2a) / 255.0, float(0
 vec3 mediumIntensityColor = vec3(float(0xb2) / 255.0, float(0x1f) / 255.0, float(0x1f) / 255.0);
 vec3 lowIntensityColor = vec3(float(0xfd) / 255.0, float(0xbb) / 255.0, float(0x2d) / 255.0);
 
+vec3 med_color = vec3(0.62, 0.08, 0.0);
+vec3 high_color = vec3(0.86, 0.11, 0.0);
+vec3 rimLighting = calculateRimLighting(normal,sky_light_dir);
 
-vec3 rimLighting = calculateRimLighting(normal,viewDirection);
 
-
-if (sky_intensity < 0.33) {
-     sky_toonColor = mix(mediumIntensityColor, lowIntensityColor, smoothstep(0.0, 0.33, sky_intensity));
-} 
-else if (sky_intensity < 0.66) {
-     sky_toonColor = mix(lowIntensityColor, mediumIntensityColor, smoothstep(0.0, 0.33, sky_intensity));
+if (sky_intensity > 0.33) {
+     sky_toonColor = med_color;
+}
+else if (sky_intensity > 0.66) {
+     sky_toonColor = high_color;
 }
     else {
-    sky_toonColor = vec3(0.76, 0.36, 1.0); // Default color for lower intensities
+  //  sky_toonColor = vec3(0.76, 0.36, 1.0); // Default color for lower intensities
 
-//    sky_toonColor = highIntensityColor;
+    sky_toonColor = highIntensityColor;
 }
 
         float sky_celShadeLevels =  5;
@@ -533,7 +535,7 @@ else if (sky_intensity < 0.66) {
 
             float sky_ambient_strength = 1.0; 
             vec3  sky_ambient_color = sky_toonColor;
-            vec3 color = vec3(0.4, 0.0, 1.0);
+            vec3 color = vec3(0.28, 0.0, 1.0);
             vec3 sky_ambient =  color * sky_ambient_strength;
 
 
@@ -544,12 +546,12 @@ else if (sky_intensity < 0.66) {
         vec3 toonColor;
 
         if (intensity > 0.75) {
-            toonColor = vec3(0.25, 1.0, 0.0);
+            toonColor = vec3(0.79, 0.01, 0.01);
         } else if (intensity > 0.5) {
    
-            toonColor = vec3(0.0, 1.0, 0.87); 
+            toonColor = vec3(0.94, 0.0, 0.0); 
         }  else {
-            toonColor = vec3(0.97);
+            toonColor = vec3(0.28, 0.0, 0.0);
         } 
 
              // Diffuse component
@@ -558,7 +560,7 @@ else if (sky_intensity < 0.66) {
         float dif_strength = 1.5;
         float diffuseStrength = max(dot(normal, lightDir), 0.0);
         vec3 diffuse_color = vec3(1.0, 0.82, 0.0);
-        vec3 diffuse = diffuseStrength * diffuse_color;
+        vec3 diffuse = diffuseStrength * toonColor;
         
         float plane_diffuseStrength = max(dot(plane_normal, global_light_dir), 0.0);
 
@@ -588,10 +590,10 @@ else if (sky_intensity < 0.66) {
         // Combine all components
   
         vec3 total_ambient = sky_ambient;
-        vec3 total_diffuse = diffuse + sky_diffuse;
+        vec3 total_diffuse = diffuse + sky_diffuse + plane_sky_diffuse + plane_color;
 
 
-         vec3 biPhongColor = (total_diffuse + specularColor + sky_ambient);
+         vec3 biPhongColor = (total_diffuse + specularColor + total_ambient);
         //biPhongColor = total_diffuse;
 
 
