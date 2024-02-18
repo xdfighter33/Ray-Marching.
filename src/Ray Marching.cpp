@@ -256,7 +256,7 @@ float vertices[] = {
         
         float get_time = glfwGetTime();
         glm::vec2 screen_resolution;
-        glm::vec4 background_color = glm::vec4{ 0.0f,0.0f,0.0f,0.0f };
+        glm::vec4 background_color = glm::vec4{ 1.0f,1.0f,1.0f,1.0f };
 
         screen_resolution.x = SCR_WIDTH;
         screen_resolution.y = SCR_HEIGHT;

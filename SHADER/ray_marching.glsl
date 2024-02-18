@@ -318,7 +318,7 @@ vec3 computerSphereNormal(vec3 p, vec3 sphereCenter){
 
 
 
-float map(vec3 p,float time){
+float map(vec3 p, float time){
 
 
 vec3 spherePos = vec3(.5,0,0);
@@ -373,7 +373,7 @@ float test4 = opDisplace(p);
 return min(physical_light,min(global_light,opSmoothUnion(sphere,plane,1.5)));
 //return sphere;
 //return plane;
-//return box;
+//return combined;
 }
 
 
@@ -388,6 +388,16 @@ vec3 computeNormalTime(vec3 p, float epsilon, float time) {
 
 
 }
+vec3 computeMapNormals(vec3 p, float radius){
+    const float eps = 0.001;
+    vec3 normal = vec3(
+        map(p + vec3(eps,0.0,0.0), radius) - map(p - vec3(eps,0.0,0.0), radius),
+        map(p + vec3(0.0,eps,0.0), radius) - map(p - vec3(0.0,eps,0.0), radius),
+        map(p + vec3(0.0,0.0,eps), radius) - map(p - vec3(0.0,0.0,eps), radius)
+    );
+    return normalize(normal);
+}
+
 
 vec3 toonShader(float intensity, vec3 BaseColor, float numLevels) {
 return BaseColor * ceil(intensity * numLevels) / numLevels;
@@ -411,7 +421,16 @@ float shadow(vec3 ro,  vec3 rd, float mint, float maxt )
     }
     return 1.0;
 }
+vec3 computeTestNormal(vec3 p,float time){
+    const float eps = 0.001;
+        vec3 normal = vec3(
+        map(p + vec3(eps,0.0,0.0),time) - map(p - vec3(eps,0.0,0.0),time),
+        map(p + vec3(0.0,eps,0.0),time) - map(p - vec3(0.0,eps,0.0),time),
+        map(p + vec3(0.0,0.0,eps),time) - map(p - vec3(0.0,0.0,eps),time)
+    );
 
+    return normalize(normal);
+}
 vec3 calculateRimLighting(vec3 normal,vec3 viewDirection) {
     // Calculate the dot product between the surface normal and the view direction
     float rimFactor = dot(normalize(normal), normalize(viewDirection));
@@ -432,6 +451,7 @@ vec3 calculateRimLighting(vec3 normal,vec3 viewDirection) {
 
 
 
+
 void main() {
     vec3 repetitions = vec3(1.0);
     vec2 uv = gl_FragCoord.xy / resolution.xy;
@@ -444,7 +464,7 @@ void main() {
 
     const int maxSteps = 100;
     const float maxDist = 100.0;
-    const float epsilon = 0.001;
+    const float epsilon = 0.01;
 
 
 // float shadowIntensity = shadow(camPos, normalize(vec3(0.0, -1.0, -4.0)), 0.001, maxDist);
@@ -463,6 +483,10 @@ float sky_shadowIntensity = shadow(camPos, normalize(sky_light_direction), 0.001
         vec3 finalColor;
         if (closestDist < epsilon) {
             vec3 hitPoint = camPos + distance * rayDir;
+            vec3 previousPoint = camPos - distance * rayDir;
+            vec3 previous_nroaml = computeSphNormals(previousPoint,1.0);
+            //vec3 normal = computeNormalTime(hitPoint,epsilon,time);
+            vec3 scene_normal = computeTestNormal(hitPoint,time);
             vec3 normal = computeSphNormals(hitPoint,1.0);
             vec3 plane_normal = computePlaneNormals(hitPoint,normalize(vec3(0.0,-1.0,0.0)),1.0);
             float depthIntensity = 1.0 + smoothstep(0.0, 0., distance / maxDist);
@@ -482,7 +506,22 @@ vec3 viewDirection = normalize(camPos - hitPoint);
 
 
             // Edge Detectoion
+            float dotProduct = dot(scene_normal,previous_nroaml);
+            vec3 edge_color = vec3(0.0);
+            float edge_thresh = 0.1;
+            float edge_width = 0.01;
+            float edge_factor = smoothstep(edge_thresh - edge_width,edge_thresh,dotProduct);
+          /*   if (dotProduct < .1){
+            //    FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+                return;
+            }
+         */
+            vec3 deriv_normal_x = dFdx(scene_normal);
+            vec3 deriv_normal_y = dFdy(scene_normal);
 
+            float line = length(deriv_normal_x) + length(deriv_normal_y);
+
+            vec3 color2 = deriv_normal_x + deriv_normal_y;
             // Toon Shader code
 
              float sky_intensity = dot(sky_light_direction, normalize(normal));
@@ -522,7 +561,7 @@ else if (sky_intensity > 0.66) {
 
             // SKy = Sky_light 
 
-
+            
             // Sky light Diffuse 
             float sky_diff_strengt = 5.5;
             float sky_diffuse_strength = max(dot(normal,sky_light_dir),0.0);
@@ -622,7 +661,15 @@ else if (sky_intensity > 0.66) {
            
          //finalColor = toonShader(1.0,finalColor,5.0);   
         // vec3 test_color = toonShader(3.0,ambient_color,5);
-         FragColor = vec4(finalColor, 1.0);
+
+      //  vec3 test_color = mix(finalColor,edge_color,edge_factor);
+      line *= 30;
+	line = line-1.0;
+	line = clamp(line,.0,1.0);
+      vec3 colors3 = vec3(line);
+
+      vec3 test_c = mix(finalColor,color2,colors3);
+         FragColor = vec4(test_c, 1.0);
 
             return;
         }
