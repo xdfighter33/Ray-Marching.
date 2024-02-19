@@ -26,6 +26,7 @@ glm::vec3 camera_pos;
 glm::vec3 Light_pos;
 glm::vec3 sky_light_pos;
 glm::vec3 global_light_pos;
+float test_check;
 void mouseCallback(GLFWwindow* window, double xpos, double ypos);
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
@@ -40,8 +41,7 @@ std::string VertexShaderPath   = std::string(SHADER_DIR) + "/Vertex.glsl";
 float Color_value = 0;
 
 
-int main()
-{
+int main(){
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -217,10 +217,11 @@ float vertices[] = {
     stbi_image_free(data);
 
     // Setting up Camera
-    camera_pos = glm::vec3{0.0f,0.0f,-4.0f};
-    float light_pos[3] = { 0 };
+    camera_pos = glm::vec3{0.0f,0.0f,-15.0f};
+    float light_pos[3] = { 0,0,-25.0};
     float skylight_pos[3] = { 0 };
-    float global_light[3] = { 0 };
+    float global_light[3] = {0};
+    float test_slider_values[3] = { 0 };
     // render loop
     while (!glfwWindowShouldClose(window))
     {
@@ -247,11 +248,11 @@ float vertices[] = {
             ImGui::Text("Light_1");
             ImGui::SliderFloat("Sphere x", &light_pos[0], -5.0f, 5.0f);
             ImGui::SliderFloat("Sphere y", &light_pos[1], -5.0f, 5.0f);
-            ImGui::SliderFloat("Sphere z", &light_pos[2], -5.0f, 5.0f);
-            ImGui::Text("Light_2");
-            ImGui::SliderFloat("sky_light x", &skylight_pos[0], -5, 5);
-            ImGui::SliderFloat("sky_light y", &skylight_pos[1], -5, 5);
-            ImGui::SliderFloat("sky_light z", &skylight_pos[2], -5, 5);
+            ImGui::SliderFloat("Sphere z", &light_pos[2], -50.0f, 50.0f);
+            ImGui::Text("Isac's test variable");
+            ImGui::SliderFloat("Isac's test variable.x", &skylight_pos[0], -50, 50);
+            ImGui::SliderFloat("Isac's test variable.y", &skylight_pos[1], -50, 50);
+            ImGui::SliderFloat("Isac's test variable.z", &skylight_pos[2], -50, 50);
             ImGui::Text("Light_3");
             ImGui::SliderFloat("global_light x", &global_light[0], -5, 5);
             ImGui::SliderFloat("global_light y", &global_light[1], -5, 5);
@@ -260,9 +261,10 @@ float vertices[] = {
             ImGui::Checkbox("Demo Window", &show_test_window);
 
             // Update variables after ImGui window interaction
-            Light_pos = glm::vec3((float)light_pos[0], light_pos[1], light_pos[2]);
+            camera_pos = glm::vec3((float)light_pos[0], light_pos[1], light_pos[2]);
             sky_light_pos = glm::vec3(skylight_pos[0], skylight_pos[1], skylight_pos[2]);
             door_cords = glm::vec3(global_light[0], global_light[1], global_light[2]);
+            test_check = global_light[2];
             ImGui::End();
         }
          
@@ -301,7 +303,7 @@ float vertices[] = {
        // Light_pos = glm::vec3(0, 0, 0);
 
     //sky_light_pos = glm::vec3(2.5,-1,sin(get_time) * 2);
-    camera_pos = glm::vec3(0,0,-5);
+   // camera_pos = glm::vec3(0,0,-5);
 
 
 
@@ -316,7 +318,7 @@ float vertices[] = {
         myshader.setVec2("iMouse", mouse_pos);
         myshader.setVec3("Light_direction",Light_pos);
         myshader.setVec3("door_cords",door_cords);
-
+        myshader.setFloat("test_variable", test_check);
         //ImGui Render
         ImGui::Render();
     

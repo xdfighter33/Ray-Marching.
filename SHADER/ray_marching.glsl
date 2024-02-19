@@ -12,6 +12,7 @@ uniform float time;
 uniform vec4 Back_ground_color;
 uniform vec3 Light_direction;
 uniform vec3 sky_light_direction;
+uniform float test_variable;
 uniform vec3 Global_light;
 uniform vec3 camPos;
 uniform vec3 door_cords;
@@ -24,6 +25,21 @@ float noise(vec3 p) {
 }
 
 
+
+float hash1( vec2 p )
+{
+    p  = 50.0*fract( p*0.3183099 );
+    return fract( p.x*p.y*(p.x+p.y) );
+}
+
+float hash( uint n ) 
+{
+	n = (n << 13U) ^ n;
+    n = n * (n * n * 15731U + 789221U) + 1376312589U;
+    return uintBitsToFloat( (n>>9U) | 0x3f800000U ) - 1.0;
+}
+
+vec2 hash2( float n ) { return fract(sin(vec2(n,n+1.0))*vec2(43758.5453123,22578.1459123)); }
 
 
 
@@ -347,7 +363,9 @@ float limited_repeated( vec3 p, vec3 size, float s )
 }
 
 
-
+vec2 opRepLim(vec2 p, float s, vec2 limMin, vec2 Limmax){
+    return p-s*clamp(round(p/s),-limMin,Limmax);
+}
 
 vec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d ){
     return a + b*cos( 6.28318*(c*t+d));
@@ -384,26 +402,61 @@ vec3 p2 = mat3(cos(c2), -sin(c2), 0.0,
 }
 float wall(vec3 p){
         float plane = -p.y + .75;
+    float maps;
     vec3 window_pos = vec3(0,0,-4.0);
     vec3 door_pos = door_cords;
     
     
     vec3 v = p;
-    float cylinder = length(v.xz) - 2 ;
+    v.xz = opRepLim(v.xz,1.852,vec2(4.0),vec2(4.0));
+    float rad = 0.5;
+    rad -= -0.095 * v.y;
+    rad -= 0.1*pow(0.5+0.5*sin(16.0*atan(v.x,v.z)),2.0);
 
-
-    cylinder = max(cylinder,v.y - 2.0);
-    cylinder = max(cylinder,-v.y - 2.0);
+    rad += 0.15*pow(0.5+0.5*sin(v.y*5.0),0.50);
     
-    cylinder *= .5;
-    float maps = smin(plane,cylinder,2.5);
+    
+
+    float cylinder = length(v.xz) - rad;
+
+    cylinder = max(cylinder,v.y -2.5);
+    cylinder = max(cylinder,-v.y - 2.5);
+   
+   // Collums to top and bottom of Pole 
+   vec3 qq = vec3(v.x,abs(v.y) - 2.5,v.z);
+   float box1 = sdBox(qq,vec3(.827,.15,.70));
+   float remove_middle_box = -sdBox(p,vec3 (7.029,4,7));
+      maps = min(cylinder,box1);
+      maps = max(maps,remove_middle_box);
+   //Floor 
+   {
+   v.xz = opRepLim(v.xz,1.0,vec2(2.0),vec2(1.0));
+   v.y -= 2.645;
+   float floor =sdBox(v,vec3(1.224,.408,2.245)- 0.36) - .242;
+   maps = min(maps,floor);
+   }
+     {
+   v.xz = opRepLim(v.xz,1.0,vec2(2.0),vec2(1.0));
+   v.y -= .306;
+   float floor =sdBox(v,vec3(2.224,.408,2.245)- 1.74) -  1.74;
+   maps = min(maps,floor);
+   }
+
+     {
+   v.xz = opRepLim(v.xz,1.0,vec2(2.0),vec2(1.0));
+   v.y -= .398;
+   float floor =sdBox(v,vec3(3.224,.408,2.245)- 1.74) -  1.74;
+   maps = min(maps,floor);
+   }
+
+ 
 
 
 
 
 
    
-
+ 
     return maps;
 }
 
@@ -465,7 +518,7 @@ float test4 = opDisplace(p);
 //return min(physical_light,min(global_light,opSmoothUnion(sphere,plane,1.5)));
 //return box;
 //return plane;
-return wall;
+return (physical_light_pos,wall);
 }
 
 
@@ -541,8 +594,43 @@ vec3 calculateRimLighting(vec3 normal,vec3 viewDirection) {
     return rimColor * rimFactor;
 }
 
+float calcOcclusion(vec3 pos, vec3 nor, float ra, float time) {
+    float occ = 0.0;
+    for (int i = 0; i < 32; i++) {
+        float h = 0.01 + 4.0 * pow(float(i) / 31.0, 2.0);
+        vec2 an = hash2(ra + float(i) * 13.1) * vec2(3.14159, 6.2831);
+        vec3 dir = vec3(sin(an.x) * sin(an.y), sin(an.x) * cos(an.y), cos(an.x));
+        dir *= sign(dot(dir, nor));
+        float mapValue = map(pos + h * dir, time); // Assuming map() returns a scalar
+        occ += clamp(5.0 * mapValue / h, -1.0, 1.0); // Using the scalar value directly
+    }
+    return clamp(occ / 32.0, 0.0, 1.0);
+}
+
+float calcShadow( vec3 ro,  vec3 rd, float k )
+{
+    float res = 1.0;
+    
+    float t = 0.01;
+    for( int i=0; i<150; i++ )
+    {
+        vec3 pos = ro + t*rd;
+        float h = map( pos,time );
+        res = min( res, k*max(h,0.0)/t );
+        if( res<0.0001 ) break;
+        t += clamp(h,0.01,0.5);
+    }
+
+    return res;
 
 
+}
+
+vec3 skyCol(vec3 ro, vec3 rd){
+    vec3 col = vec3(0.3,0.4,0.5) * .3 - 0.3 - rd.y;
+    col = mix(col,vec3(0.2,0.25,0.3) * .5, exp(-30*rd.y));
+return col;
+}
 
 void main() {
     vec3 repetitions = vec3(1.0);
@@ -616,6 +704,40 @@ vec3 viewDirection = normalize(camPos - hitPoint);
             vec3 color2 = deriv_normal_x + deriv_normal_y;
 
             color2 *= 2;
+
+            //New color
+        vec3 shit_color = vec3(0);
+        vec3 SunLight = normalize(vec3(0.7,0.1,0.4));
+
+       float occ = 0.33 + 0.5 * scene_normal.y;
+       occ = calcOcclusion(hitPoint,scene_normal,0,time) * .22;
+
+       vec3 sky_lig = normalize(vec3(SunLight.x,SunLight.y+(-.969),SunLight.z));
+       vec3 sky_lig_back = normalize(vec3(-sky_lig.x,0.0,-sky_lig.z));
+       float dif = clamp(dot(scene_normal,sky_lig),0.,1.0);
+       float sha = calcShadow(hitPoint+scene_normal,sky_lig,2.0);
+       float amb = (0.8 + 0.2 *scene_normal.y);
+       amb = mix(amb,amb*(0.5+0.5*smoothstep(-8.,1.0,hitPoint.y)),3.023);
+       
+       dif *= sha;
+
+       vec3 qos = hitPoint/1.5 - vec3(0,1,0);
+
+       float bak = clamp(0.4+0.6*dot(scene_normal,sky_lig_back),0.0,1.0);
+       bak *= 0.6 + 0.4 * smoothstep(-8.,-1.,qos.y);
+      shit_color += amb*2.5*vec3(1.0,0.5,0)*occ;
+      shit_color += dif*6*vec3(0.9,0.4,0);
+      shit_color += bak*8*vec3(0.1,.1,.1)*occ;
+
+      vec3 fogcol = vec3(0.2,0.25,0.30)*0.5;
+
+      float fog = 1.0 - exp(-0.00013*.5);
+      shit_color *= 1.0 - 0.5*fog;
+      shit_color = mix(shit_color,fogcol,fog);
+
+      shit_color = max(shit_color,0.0);
+
+
             // Toon Shader code
 
              float sky_intensity = dot(sky_light_direction, normalize(normal));
@@ -668,7 +790,7 @@ else if (sky_intensity > 0.66) {
 
             float sky_ambient_strength = 1.0; 
             vec3  sky_ambient_color = sky_toonColor;
-            vec3 color = vec3(0.28, 0.0, 1.0);
+            vec3 color = vec3(1.0, 0.0, 0.0);
             vec3 sky_ambient =  color * sky_ambient_strength;
 
 
@@ -692,8 +814,8 @@ else if (sky_intensity > 0.66) {
         
         float dif_strength = 1.5;
         float diffuseStrength = max(dot(normal, lightDir), 0.0);
-        vec3 diffuse_color = vec3(1.0, 0.82, 0.0);
-        vec3 diffuse = diffuseStrength * toonColor;
+        vec3 diffuse_color = vec3(0.0, 0.82, 0.0);
+        vec3 diffuse = diffuseStrength * diffuse_color;
         
         float plane_diffuseStrength = max(dot(plane_normal, global_light_dir), 0.0);
 
@@ -715,7 +837,7 @@ else if (sky_intensity > 0.66) {
         // Ambient component
         float ambientStrength = 2.50;
         vec3 ambient_color = vec3(0.8, 0.0, 0.0);
-        vec3 ambient = sky_toonColor * ambient_color;
+        vec3 ambient = ambient_color;
 
 
         vec3 biPhong_use_color = vec3(0.0, 0.24, 1.0);
@@ -724,8 +846,8 @@ else if (sky_intensity > 0.66) {
   
         vec3 total_ambient = sky_ambient;
         vec3 total_diffuse = diffuse + sky_diffuse + plane_sky_diffuse + plane_color;
-
-         vec3 biPhongColor = (total_diffuse + specularColor);
+        vec3 phong_clor = ( ambient + diffuse + specularColor);
+         vec3 biPhongColor = (total_diffuse + specularColor + total_ambient);
         //biPhongColor = total_diffuse;
 
 
@@ -760,11 +882,11 @@ else if (sky_intensity > 0.66) {
 	line = line-1.0;
 	line = clamp(line,.0,1.0);
       vec3 colors3 = vec3(line);
-    vec3 n_color = scene_normal * 15;
+    vec3 n_color = scene_normal * vec3(0.0);
       vec3 test_c = mix(finalColor,n_color,color2);
 
       vec3 color4 = mix(test_c,vec3(0.0),colors3);
-         FragColor = vec4(color4, 1.0);
+         FragColor = vec4(shit_color , 1.0);
 
             return;
         }
