@@ -21,7 +21,7 @@ float intensity_value;
 #endif
 
 
-
+glm::vec3 door_cords;
 glm::vec3 camera_pos;
 glm::vec3 Light_pos;
 glm::vec3 sky_light_pos;
@@ -248,7 +248,7 @@ float vertices[] = {
 
             Light_pos = glm::vec3(light_pos[0],light_pos[1],light_pos[2]);
             sky_light_pos = glm::vec3(skylight_pos[0],skylight_pos[1],skylight_pos[2]);
-            sphere_cords = glm::vec3(global_light[0],global_light[1],global_light[2]);
+            door_cords = glm::vec3(global_light[0],global_light[1],global_light[2]);
             ImGui::End();   
 
 
@@ -296,6 +296,7 @@ float vertices[] = {
         myshader.setVec3("sphere_cords", sphere_cords);
         myshader.setVec2("iMouse", mouse_pos);
         myshader.setVec3("Light_direction",Light_pos);
+        myshader.setVec3("door_cords",door_cords);
 
         //ImGui Render
         ImGui::Render();

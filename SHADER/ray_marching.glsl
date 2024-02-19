@@ -4,6 +4,7 @@
 
 out vec4 FragColor;
 
+#define inf 1e20
 
 uniform vec2 iMouse;
 uniform vec2 resolution;
@@ -13,6 +14,7 @@ uniform vec3 Light_direction;
 uniform vec3 sky_light_direction;
 uniform vec3 Global_light;
 uniform vec3 camPos;
+uniform vec3 door_cords;
 uniform vec3 camera;
 uniform vec3 sphere_cords;
 uniform float inten_value;
@@ -49,10 +51,10 @@ float marble(vec3 p) {
     return turbulence;
 }
 
+
 vec3 computeSphereNormals(vec3 p){
    return normalize(p);
 }
-
 
 float sdf_sphere_1(vec3 p, float r){
     return length(p) - r; // 
@@ -145,6 +147,7 @@ vec3 computeBoxPosition(float time) {
 
     vec3 cpu_cam_pos = camera;
 
+    //cpu_cam_pos.z *= sin(time) * 2;
     return cpu_cam_pos; 
 }
 
@@ -233,7 +236,7 @@ float opRev(vec3 p, float o){
 float opElongate(vec3 p, vec3 h){
 
     vec3 q = p - clamp(p,-h,h);
-    return sdBox(q,vec3(1.));
+    return sdBox(q,vec3(1));
 }
 
 float opRound(vec3 p,float rad){
@@ -266,17 +269,21 @@ float repeated(vec3 p, float s)
 
                 float timeEffect = sin(time);
 
-                float animated = sin(r.x * 5.0 + timeEffect) * cos(r.y * 5.0) * sin(r.z * 1.0);
+                float animated = sin(r.x * 1.0 + timeEffect) * cos(r.y * 1.0) * sin(r.z * 1.0);
 
                 // Twisted and warped pattern
-                float twisted = cos(r.x * time) * cos(r.y * time) * cos(r.z * time);
+                float twisted = cos(r.x * time) * cos(r.y * time);
                 float warped = sin(r.x * 1.0) * sin(r.y * 1.0) * sin(r.z * 1.0);
                 
-               // d = min(d, sdVerticalCapsule(r * twisted, 1.5, 0.05));
+                float shift_down = sin(r.z * timeEffect);
+              //  d = min(d, sdVerticalCapsule(r - vec3(0,0,sin(-4) * time), 1.5, 0.05));
 
              //d = min(d,opRev(r,1.55));
+            vec3 pos = vec3(-4,-2,-2 * sin(time));
 
-             d = min(d,opRev(r,5.5));
+          //  pos.z *= time;
+          //   d = min(d,opElongate(r - pos,vec3(0.5)));
+             d = min(d,sdVerticalCapsule(r - pos,3.0,1.0));
             }
     return d;
 }
@@ -303,6 +310,43 @@ float repetition_rotationals( vec3 p, int n )
 }
 
 
+float repeat_rectangular_ONLY_SYMMETRIC_SDFS( vec3 p,  vec3 size, float s )
+{
+    p = abs(p/s) - (vec3(size)*0.5-0.5);
+   p = (p.x < p.y) ? ((p.y < p.z) ? p.yxz : ((p.x < p.z) ? p.xyz : p.zxy)) :
+                  ((p.x < p.z) ? p.xzy : ((p.y < p.z) ? p.zxy : p.yxz));
+    p.z -= min(0.0, round(p.x));
+    return sdBox(p*s,vec3(1.25));
+}
+
+float sdCross( vec3 p )
+{
+  float da = sdBox(p.xyz,vec3(inf,1.0,1.0));
+  float db = sdBox(p.yzx,vec3(1.0,inf,1.0));
+  float dc = sdBox(p.zxy,vec3(1.0,1.0,inf));
+  return min(da,min(db,dc));
+}
+
+
+float limited_repeated( vec3 p, vec3 size, float s )
+{
+    
+    vec3 id = round( p/s);
+    vec3  o = sign(p-s*id);
+    float d = 1e20;
+    for( int j=0; j<3; j++ )
+    for( int i=0; i<3; i++ )
+    {
+        vec3 rid = id + vec3(i,j,1.0)*o;
+	// limited repetition
+        rid = clamp(rid,-(size-1.0)*0.5,(size-1.0)*0.5);
+        vec3 r = p - s*rid;
+        d = min( d, opElongate(r,vec3(1)));
+    }
+    return d;
+}
+
+
 
 
 vec3 palette(float t,vec3 a,vec3 b,vec3 c,vec3 d ){
@@ -315,6 +359,53 @@ vec3 computerSphereNormal(vec3 p, vec3 sphereCenter){
 }
 
 
+float repeated_rectanlgle(vec3 p, vec3 size){
+    int count = 10;
+    float b = 6.283185/float(count);
+    float theta = acos(p.x / length(p));
+
+    float a = atan(p.y,p.x);
+    float i = floor(theta /b);
+
+    
+  float c1 = b * (i + 0.0); 
+vec3 p1 = mat3(cos(c1), -sin(c1), 0.0,
+               sin(c1), cos(c1), 0.0,
+               0.0, 0.0, 1.0) * p;
+
+float c2 = b * (i + 1.0); 
+vec3 p2 = mat3(cos(c2), -sin(c2), 0.0,
+               sin(c2), cos(c2), 0.0,
+               0.0, 0.0, 1.0) * p;
+
+
+
+    return min(sdBox(p1,size),sdBox(p2,size));
+}
+float wall(vec3 p){
+        float plane = -p.y + .75;
+    vec3 window_pos = vec3(0,0,-4.0);
+    vec3 door_pos = door_cords;
+    
+    
+    vec3 v = p;
+    float cylinder = length(v.xz) - 2 ;
+
+
+    cylinder = max(cylinder,v.y - 2.0);
+    cylinder = max(cylinder,-v.y - 2.0);
+    
+    cylinder *= .5;
+    float maps = smin(plane,cylinder,2.5);
+
+
+
+
+
+   
+
+    return maps;
+}
 
 
 
@@ -323,7 +414,7 @@ float map(vec3 p, float time){
 
 vec3 spherePos = vec3(.5,0,0);
 vec3 boxPos = vec3(0,0,0);
-vec3 infBoxPos = vec3(sin(time * 2),-5,0);
+vec3 infBoxPos = vec3(0,-1,0);
 vec3 linePos = vec3( 0,0,5);
 vec3 light1_physical_pos = Light_direction;
 vec3 physical_light_pos = sky_light_direction;
@@ -332,6 +423,7 @@ vec3 plane_pos = vec3(0,0,0);
 
 
 vec3 zx = p;
+p.x *= 2;
 normalize(zx.y);
 //zx = fract(p) - .45;
 
@@ -355,9 +447,9 @@ float box = sdBox(p - boxPos,vec3(1.0));
 float ground1 = -p.y + .75;
 float ground2 = p.y + .75;
 
+float wall = wall(p);
 
-
-float test = repeated(p - boxPos,5.5);
+float test = repeated(p,5.5);
 
 float test1 = opRev(p,0.25);
 float test2 = opElongate(p,vec3(1.5));
@@ -370,10 +462,10 @@ float test4 = opDisplace(p);
 //return min(sphere,smin(ground1,box,10.5));
 //return min(sphere,min(physical_light,light1));
 //return opSmoothUnion(global_light,min(box,min(sphere,min(plane,min(light1,physical_light)))),1.0);
-return min(physical_light,min(global_light,opSmoothUnion(sphere,plane,1.5)));
-//return sphere;
+//return min(physical_light,min(global_light,opSmoothUnion(sphere,plane,1.5)));
+//return box;
 //return plane;
-//return combined;
+return wall;
 }
 
 
@@ -522,6 +614,8 @@ vec3 viewDirection = normalize(camPos - hitPoint);
             float line = length(deriv_normal_x) + length(deriv_normal_y);
 
             vec3 color2 = deriv_normal_x + deriv_normal_y;
+
+            color2 *= 2;
             // Toon Shader code
 
              float sky_intensity = dot(sky_light_direction, normalize(normal));
@@ -631,8 +725,7 @@ else if (sky_intensity > 0.66) {
         vec3 total_ambient = sky_ambient;
         vec3 total_diffuse = diffuse + sky_diffuse + plane_sky_diffuse + plane_color;
 
-
-         vec3 biPhongColor = (total_diffuse + specularColor + total_ambient);
+         vec3 biPhongColor = (total_diffuse + specularColor);
         //biPhongColor = total_diffuse;
 
 
@@ -650,7 +743,7 @@ else if (sky_intensity > 0.66) {
          
             // Add some noise to the color
             float noiseValue = noise(hitPoint * 5.1); // Adjust the noise frequency
-            //finalColor += noiseValue * .5; // Adjust noise influence
+           // finalColor += noiseValue * .5; // Adjust noise influence
 
 
           
@@ -663,13 +756,15 @@ else if (sky_intensity > 0.66) {
         // vec3 test_color = toonShader(3.0,ambient_color,5);
 
       //  vec3 test_color = mix(finalColor,edge_color,edge_factor);
-      line *= 30;
+      line *= 55;
 	line = line-1.0;
 	line = clamp(line,.0,1.0);
       vec3 colors3 = vec3(line);
+    vec3 n_color = scene_normal * 15;
+      vec3 test_c = mix(finalColor,n_color,color2);
 
-      vec3 test_c = mix(finalColor,color2,colors3);
-         FragColor = vec4(test_c, 1.0);
+      vec3 color4 = mix(test_c,vec3(0.0),colors3);
+         FragColor = vec4(color4, 1.0);
 
             return;
         }
