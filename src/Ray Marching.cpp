@@ -89,13 +89,21 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // Required on Mac
+
+#else
+// GL 3. + GLSL 130
+    const char* glsl_version = "#version 400";
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);  // 3.2+ only
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);            // 3.0+ only
 #endif
 
 
 IMGUI_CHECKVERSION();
 ImGui::CreateContext();
 ImGuiIO& test = ImGui::GetIO(); (void) test;
-test.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;   
+test.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 ImGui::StyleColorsDark();
 
 
@@ -210,62 +218,69 @@ float vertices[] = {
 
     // Setting up Camera
     camera_pos = glm::vec3{0.0f,0.0f,-4.0f};
+    float light_pos[3] = { 0 };
+    float skylight_pos[3] = { 0 };
+    float global_light[3] = { 0 };
     // render loop
     while (!glfwWindowShouldClose(window))
     {
+
+
+
+
+
         //IMGUI FRAME SETUP
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
-        
+
         //ImGui varible_setup
-            float light_pos[3];
-            float skylight_pos[3];
-            float global_light[3];
+ 
         //ImGui Window Setup
         glm::vec3 sphere_cords;
-        if(show_test_window)
+        if (show_test_window)
         {
 
-               ImGui::Begin("Welcome To COnfig"); 
+
+            ImGui::Begin("Light Config");
             ImGui::Text("Light_1");
-            ImGui::SliderFloat("Sphere x", &light_pos[0], -5,5 );
-            ImGui::SliderFloat("Sphere y", &light_pos[1], -5,5 );
-            ImGui::SliderFloat("Sphere z", &light_pos[2], -5,5 );
+            ImGui::SliderFloat("Sphere x", &light_pos[0], -5.0f, 5.0f);
+            ImGui::SliderFloat("Sphere y", &light_pos[1], -5.0f, 5.0f);
+            ImGui::SliderFloat("Sphere z", &light_pos[2], -5.0f, 5.0f);
             ImGui::Text("Light_2");
-            ImGui::SliderFloat("sky_light x", &skylight_pos[0], -5,5 );
-            ImGui::SliderFloat("sky_light y", &skylight_pos[1], -5,5 );
-            ImGui::SliderFloat("sky_light z", &skylight_pos[2], -5,5 );
+            ImGui::SliderFloat("sky_light x", &skylight_pos[0], -5, 5);
+            ImGui::SliderFloat("sky_light y", &skylight_pos[1], -5, 5);
+            ImGui::SliderFloat("sky_light z", &skylight_pos[2], -5, 5);
             ImGui::Text("Light_3");
-            ImGui::SliderFloat("global_light x", &global_light[0], -5,5 );
-            ImGui::SliderFloat("global_light y", &global_light[1], -5,5 );
-            ImGui::SliderFloat("global_light z", &global_light[2], -5,5 );
-            ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-            ImGui::Checkbox("Demo Window", &show_test_window);      
+            ImGui::SliderFloat("global_light x", &global_light[0], -5, 5);
+            ImGui::SliderFloat("global_light y", &global_light[1], -5, 5);
+            ImGui::SliderFloat("global_light z", &global_light[2], -5, 5);
+            ImGui::Text("This is some useful text.");
+            ImGui::Checkbox("Demo Window", &show_test_window);
 
-
-
-            Light_pos = glm::vec3(light_pos[0],light_pos[1],light_pos[2]);
-            sky_light_pos = glm::vec3(skylight_pos[0],skylight_pos[1],skylight_pos[2]);
-            door_cords = glm::vec3(global_light[0],global_light[1],global_light[2]);
-            ImGui::End();   
-
-
+            // Update variables after ImGui window interaction
+            Light_pos = glm::vec3((float)light_pos[0], light_pos[1], light_pos[2]);
+            sky_light_pos = glm::vec3(skylight_pos[0], skylight_pos[1], skylight_pos[2]);
+            door_cords = glm::vec3(global_light[0], global_light[1], global_light[2]);
+            ImGui::End();
         }
-        
+         
         float get_time = glfwGetTime();
         glm::vec2 screen_resolution;
         glm::vec4 background_color = glm::vec4{ 1.0f,1.0f,1.0f,1.0f };
 
         screen_resolution.x = SCR_WIDTH;
         screen_resolution.y = SCR_HEIGHT;
-        
+
+
         // input
-        // -----
+// -----
         processInput(window);
         glfwPollEvents();
         glfwSetCursorPosCallback(window, mouseCallback);
+
+
 
         // render
         // ------
@@ -280,11 +295,15 @@ float vertices[] = {
 
         // render container
 
-   global_light_pos = glm::vec3(0,-10,0);
+   //global_light_pos = glm::vec3(0,-10,0);
    //Light_pos = glm::vec3(sin(get_time) * -9,-1.75,cos(get_time) * 9);
 
-   // sky_light_pos = glm::vec3(2.5,-1,sin(get_time) * 2);
+       // Light_pos = glm::vec3(0, 0, 0);
+
+    //sky_light_pos = glm::vec3(2.5,-1,sin(get_time) * 2);
     camera_pos = glm::vec3(0,0,-5);
+
+
 
         myshader.setFloat("time",get_time);
         myshader.setFloat("inten_value",intensity_value);
@@ -300,7 +319,6 @@ float vertices[] = {
 
         //ImGui Render
         ImGui::Render();
-   
     
         glBindVertexArray(VAO);
         glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
@@ -350,15 +368,15 @@ void mouseCallback(GLFWwindow* window, double xpos, double ypos) {
     // Do something with the mouse position
     // Example: Print mouse coordinates
     //std::cout << "Mouse position: " << xpos << ", " << ypos << std::endl;
-
+    ImGuiIO& io = ImGui::GetIO();
+    io.MousePos = ImVec2((float)xpos, ((float)ypos));
     mouse_pos.x = xpos;
     mouse_pos.y = ypos;
 
  //   std::cout << "Mouse Position_x: " << mouse_pos.x << std::endl;
-    std::cout << "Sky light  Position_Z: " << sky_light_pos.y << std::endl;
+   // std::cout << "Sky light  Position_Z: " << sky_light_pos.y << std::endl;
 
-
-    std::cout << intensity_value << std::endl;
+//    std::cout << intensity_value << std::endl;
 }
 
 
